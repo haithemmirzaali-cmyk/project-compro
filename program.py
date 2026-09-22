@@ -179,16 +179,19 @@ def menu_delete_book(book_id, filename="books.dat"):
 
 def menu_view_books(filename="books.dat"):
     books = read_all_books(filename)
-    if not books:
-        print("No books found.")
+    
+    active_books = [b for b in books if b['status'] == 1]
+
+    if not active_books:
+        print("\nNo active books found.")
         return
 
     print("-" * 108)
     print(f"{'ID':<6} {'Title':<45} {'Author':<25} {'Year':<6} {'Copies':<7} {'Status':<8}")
     print("-" * 108)
 
-    for b in books:
-        status_text = "Active" if b['status'] == 1 else "Deleted"
+    for b in active_books:
+        status_text = "Active"
         print(f"{b['book_id']:<6} {b['title']:<45} {b['author']:<25} {b['year']:<6} {b['copies']:<7} {status_text:<8}")
 
     print("-" * 108)
@@ -274,7 +277,7 @@ def menu_view_members(filename="members.dat"):
     print("-" * 83)
 
     for m in members:
-        status_text = "Active" if m['status'] == 1 else "Deleted"
+        status_text = "Active" if m['status'] == 1 else "Unactive"
         print(f"{m['member_id']:<10} {m['name']:<22} {m['birth_year']:<17} {m['max_loan']:<19} {status_text:<17}")
 
     print("-" * 83)
@@ -704,7 +707,7 @@ def generate_report(report_file="report.pdf"):
         table_data.append([
             str(book['book_id']),
             book['title'][:30] + "..." if len(book['title']) > 30 else book['title'],
-            book['author'],
+            book['author'][:20] + "..." if len(book['author']) > 20 else book['author'],
             str(book['year']),
             str(book['copies']),
             borrowed_str,
@@ -898,4 +901,4 @@ def manage_loans():
 
 ################################################# MENU #################################################################
 
-main_menu()#  :)
+main_menu()
