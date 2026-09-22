@@ -6,182 +6,180 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-############################################# BINARY FILE STRUCTURES ##############################################################
-book_layout = struct.Struct("<i50si30siiiI")
-member_layout = struct.Struct("<ii50siiII")
-loan_layout = struct.Struct("<Iiii10s10sii")
-
-def add_book(book_id, title, status, author, pub_year, total_copies):
-    current_ts = int(time.time())
-    record = book_layout.pack(
+############################################# BINARY FILE ##############################################################
+books_struck = struct.Struct("<i50si30siiiI")
+def add_book(book_id, title, status, author, year, copies):
+    now = int(time.time())
+    record = books_struck.pack(
         book_id,
         title.encode("utf-8").ljust(50, b"\x00"),
         status,
         author.encode("utf-8").ljust(30, b"\x00"),
-        pub_year,
-        total_copies,
-        current_ts,   # created_at
-        current_ts    # updated_at
+        year,
+        copies,
+        now,   # created_at
+        now    # updated_at
     )
-    with open("books.dat", "ab") as file_out:
-        file_out.write(record)
+    with open("books.dat", "ab") as f:
+        f.write(record)
 
-def add_members(member_id, status, full_name, birth_year, loan_limit):
-    current_ts = int(time.time())
-    record = member_layout.pack(
+members_struck = struct.Struct("<ii50siiII")
+def add_members(member_id , status , name, birth_year , max_loan):
+    now = int(time.time())
+    record = members_struck.pack(
         member_id,
         status,
-        full_name.encode("utf-8").ljust(50, b"\x00"),
+        name.encode("utf-8").ljust(50, b"\x00"),
         birth_year,
-        loan_limit,
-        current_ts,   # created_at
-        current_ts    # updated_at
+        max_loan,
+        now,   # created_at
+        now    # updated_at
     )
-    with open("members.dat", "ab") as file_out:
-        file_out.write(record)
+    with open("members.dat", "ab") as f:
+        f.write(record)
 
-def add_loans(operation_code, book_id, member_id, start_date, end_date, status_after, is_rented_after):
-    current_ts = int(time.time())
-    record = loan_layout.pack(
-        current_ts,
-        operation_code,
+loans_struck = struct.Struct("<Iiii10s10sii")
+def add_loans(op_code, book_id, member_id, loan_date, return_date, status_after, is_rented_after):
+    now = int(time.time())
+    record = loans_struck.pack(
+        now,
+        op_code,
         book_id,
         member_id,
-        start_date.encode("utf-8").ljust(10, b"\x00"),
-        end_date.encode("utf-8").ljust(10, b"\x00"),
+        loan_date.encode("utf-8").ljust(10, b"\x00"),
+        return_date.encode("utf-8").ljust(10, b"\x00"),
         status_after,
         is_rented_after
     )
-    with open("loans.dat", "ab") as file_out:
-        file_out.write(record)
-
-def read_all_books(target_file="books.dat"):
-    book_list = []
+    with open("loans.dat", "ab") as f:
+        f.write(record)
+def read_all_books(filename="books.dat"):
+    books = []
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(book_layout.size)
-                if len(raw_bytes) < book_layout.size:
+                data = f.read(books_struck.size)
+                if len(data) < books_struck.size:
                     break 
-                data = book_layout.unpack(raw_bytes)
+                unpacked = books_struck.unpack(data)
                 
-                book_entry = {
-                    "book_id": data[0],
-                    "title": data[1].decode("utf-8").rstrip("\x00"),
-                    "status": data[2],
-                    "author": data[3].decode("utf-8").rstrip("\x00"),
-                    "year": data[4],
-                    "copies": data[5],
-                    "created_at": datetime.fromtimestamp(data[6]).strftime("%Y-%m-%d %H:%M:%S"),
-                    "updated_at": datetime.fromtimestamp(data[7]).strftime("%Y-%m-%d %H:%M:%S")
+                book = {
+                    "book_id": unpacked[0],
+                    "title": unpacked[1].decode("utf-8").rstrip("\x00"),
+                    "status": unpacked[2],
+                    "author": unpacked[3].decode("utf-8").rstrip("\x00"),
+                    "year": unpacked[4],
+                    "copies": unpacked[5],
+                    "created_at": datetime.fromtimestamp(unpacked[6]).strftime("%Y-%m-%d %H:%M:%S"),
+                    "updated_at": datetime.fromtimestamp(unpacked[7]).strftime("%Y-%m-%d %H:%M:%S")
                 }
-                book_list.append(book_entry)
+                books.append(book)
     except FileNotFoundError:
-        print(f"ไฟล์ {target_file} ไม่พบ")
-    return book_list
-
-def read_all_members(target_file="members.dat"):
-    member_list = []
+        print(f"ไฟล์ {filename} ไม่พบ")
+    return books
+def read_all_members(filename="members.dat"):
+    members = []
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(member_layout.size)
-                if len(raw_bytes) < member_layout.size:
+                data = f.read(members_struck.size)
+                if len(data) < members_struck.size:
                     break
-                data = member_layout.unpack(raw_bytes)
+                unpacked = members_struck.unpack(data)
                 
-                member_entry = {
-                    "member_id": data[0],
-                    "status": data[1],
-                    "name": data[2].decode("utf-8").rstrip("\x00"),
-                    "birth_year": data[3],
-                    "max_loan": data[4],
-                    "created_at": datetime.fromtimestamp(data[5]).strftime("%Y-%m-%d %H:%M:%S"),
-                    "updated_at": datetime.fromtimestamp(data[6]).strftime("%Y-%m-%d %H:%M:%S")
+                member = {
+                    "member_id": unpacked[0],
+                    "status": unpacked[1],
+                    "name": unpacked[2].decode("utf-8").rstrip("\x00"),
+                    "birth_year": unpacked[3],
+                    "max_loan": unpacked[4],
+                    "created_at": datetime.fromtimestamp(unpacked[5]).strftime("%Y-%m-%d %H:%M:%S"),
+                    "updated_at": datetime.fromtimestamp(unpacked[6]).strftime("%Y-%m-%d %H:%M:%S")
                 }
-                member_list.append(member_entry)
+                members.append(member)
     except FileNotFoundError:
-        print(f"ไฟล์ {target_file} ไม่พบ")
-    return member_list
+        print(f"ไฟล์ {filename} ไม่พบ")
+    return members
 
-def read_all_loans(target_file="loans.dat"):
-    loan_list = []
+def read_all_loans(filename="loans.dat"):
+    loans = []
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(loan_layout.size)
-                if len(raw_bytes) < loan_layout.size:
+                data = f.read(loans_struck.size)
+                if len(data) < loans_struck.size:
                     break 
-                data = loan_layout.unpack(raw_bytes)
-                loan_entry = {
-                    "ts": datetime.fromtimestamp(data[0]).strftime("%Y-%m-%d %H:%M:%S"),
-                    "op_code": data[1],
-                    "book_id": data[2],
-                    "member_id": data[3],
-                    "loan_date": data[4].decode("utf-8").rstrip("\x00"),
-                    "return_date": data[5].decode("utf-8").rstrip("\x00"),
-                    "status_after": data[6],
-                    "is_rented_after": data[7],
+                unpacked = loans_struck.unpack(data)
+                loan = {
+                    "ts": datetime.fromtimestamp(unpacked[0]).strftime("%Y-%m-%d %H:%M:%S"),
+                    "op_code": unpacked[1],
+                    "book_id": unpacked[2],
+                    "member_id": unpacked[3],
+                    "loan_date": unpacked[4].decode("utf-8").rstrip("\x00"),
+                    "return_date": unpacked[5].decode("utf-8").rstrip("\x00"),
+                    "status_after": unpacked[6],
+                    "is_rented_after": unpacked[7],
                 }
-                loan_list.append(loan_entry)
+                loans.append(loan)
     except FileNotFoundError:
-        print(f"\n❌ File {target_file} not found")
-    return loan_list
+        print(f"\n❌ File {filename} not found")
+    return loans
+
+############################################# BINARY FILE ##############################################################
 
 ############################################ FUNCTIONS MENU ############################################################
-
 def menu_add_book():
     print("\n=== Add New Book ===")
     try:
-        b_id = int(input("Enter Book ID: "))
-        b_title = str(input("Enter Title: "))
-        b_author = str(input("Enter Author: "))
-        b_year = int(input("Enter Year: "))
-        b_copies = int(input("Enter Copies: "))
-        init_status = 1  
+        book_id = int(input("Enter Book ID: "))
+        title = str(input("Enter Title: "))
+        author = str(input("Enter Author: "))
+        year = int(input("Enter Year: "))
+        copies = int(input("Enter Copies: "))
+        status = 1  
 
-        add_book(b_id, b_title, init_status, b_author, b_year, b_copies)
-        print(f"\n✅ Book '{b_title}' added successfully!")
+        add_book(book_id, title, status, author, year, copies)
+        print(f"\n✅ Book '{title}' added successfully!")
 
     except ValueError:
         print("\n❌ Invalid input. Please enter valid information.")
 
-def menu_delete_book(target_book_id, target_file="books.dat"):
-    records = []
-    is_found = False
+def menu_delete_book(book_id, filename="books.dat"):
+    books = []
+    found = False
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(book_layout.size)
-                if len(raw_bytes) < book_layout.size:
+                data = f.read(books_struck.size)
+                if len(data) < books_struck.size:
                     break
-                unpacked_data = book_layout.unpack(raw_bytes)
-                records.append(list(unpacked_data))
+                unpacked = books_struck.unpack(data)
+                books.append(list(unpacked))
     except FileNotFoundError:
-        print(f"\n❌ File {target_file} not found")
+        print(f"\n❌ File {filename} not found")
         return
 
-    for item in records:
-        if item[0] == target_book_id and item[2] == 1: 
-            item[2] = 0  
-            item[7] = int(time.time()) 
-            is_found = True
+    for b in books:
+        if b[0] == book_id and b[2] == 1: 
+            b[2] = 0  
+            b[7] = int(time.time()) 
+            found = True
             break
 
-    if not is_found:
-        print(f"\n❌ Book ID {target_book_id} not found or already deleted")
+    if not found:
+        print(f"\n❌ Book ID {book_id} not found or already deleted")
         return
 
-    with open(target_file, "wb") as file_out:
-        for item in records:
-            packed_rec = book_layout.pack(*item)
-            file_out.write(packed_rec)
+    with open(filename, "wb") as f:
+        for b in books:
+            record = books_struck.pack(*b)
+            f.write(record)
 
-    print(f"\n✅ Book ID {target_book_id} deleted successfully")
+    print(f"\n✅ Book ID {book_id} deleted successfully")
 
-def menu_view_books(target_file="books.dat"):
-    book_data = read_all_books(target_file)
-    if not book_data:
+def menu_view_books(filename="books.dat"):
+    books = read_all_books(filename)
+    if not books:
         print("No books found.")
         return
 
@@ -189,85 +187,85 @@ def menu_view_books(target_file="books.dat"):
     print(f"{'ID':<6} {'Title':<45} {'Author':<25} {'Year':<6} {'Copies':<7} {'Status':<8}")
     print("-" * 108)
 
-    for item in book_data:
-        status_str = "Active" if item['status'] == 1 else "Deleted"
-        print(f"{item['book_id']:<6} {item['title']:<45} {item['author']:<25} {item['year']:<6} {item['copies']:<7} {status_str:<8}")
+    for b in books:
+        status_text = "Active" if b['status'] == 1 else "Deleted"
+        print(f"{b['book_id']:<6} {b['title']:<45} {b['author']:<25} {b['year']:<6} {b['copies']:<7} {status_text:<8}")
 
     print("-" * 108)
 
-def menu_edit_book(target_file="books.dat"):
+def menu_edit_book(filename="books.dat"):
     menu_view_books()
     try:
-        target_id = int(input("Enter Book ID to edit: "))
+        book_id = int(input("Enter Book ID to edit: "))
     except ValueError:
         print("\n❌ Invalid input. Please enter a number.")
         return
 
-    book_records = []
-    is_found = False
+    books = []
+    found = False
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(book_layout.size)
-                if len(raw_bytes) < book_layout.size:
+                data = f.read(books_struck.size)
+                if len(data) < books_struck.size:
                     break
-                unpacked_data = book_layout.unpack(raw_bytes)
-                book_records.append(list(unpacked_data))
+                unpacked = books_struck.unpack(data)
+                books.append(list(unpacked))
     except FileNotFoundError:
-        print(f"\n❌ File {target_file} not found")
+        print(f"\n❌ File {filename} not found")
         return
 
-    for rec in book_records:
-        if rec[0] == target_id and rec[2] == 1: 
-            print(f"Editing Book ID {target_id}")
-            new_title = input(f"Enter new Title [{rec[1].decode('utf-8').rstrip(chr(0))}]: ")
-            new_author = input(f"Enter new Author [{rec[3].decode('utf-8').rstrip(chr(0))}]: ")
+    for b in books:
+        if b[0] == book_id and b[2] == 1: 
+            print(f"Editing Book ID {book_id}")
+            title = input(f"Enter new Title [{b[1].decode('utf-8').rstrip(chr(0))}]: ")
+            author = input(f"Enter new Author [{b[3].decode('utf-8').rstrip(chr(0))}]: ")
             try:
-                input_year = input(f"Enter new Year [{rec[4]}]: ")
-                new_year = int(input_year) if input_year else rec[4]
-                input_copies = input(f"Enter new Copies [{rec[5]}]: ")
-                new_copies = int(input_copies) if input_copies else rec[5]
+                year = input(f"Enter new Year [{b[4]}]: ")
+                year = int(year) if year else b[4]
+                copies = input(f"Enter new Copies [{b[5]}]: ")
+                copies = int(copies) if copies else b[5]
             except ValueError:
                 print("\n❌ Invalid number input. Edit canceled.")
                 return
 
-            rec[1] = new_title.encode("utf-8").ljust(50, b"\x00") if new_title else rec[1]
-            rec[3] = new_author.encode("utf-8").ljust(30, b"\x00") if new_author else rec[3]
-            rec[4] = new_year
-            rec[5] = new_copies
-            rec[7] = int(time.time())
-            is_found = True
+            b[1] = title.encode("utf-8").ljust(50, b"\x00") if title else b[1]
+            b[3] = author.encode("utf-8").ljust(30, b"\x00") if author else b[3]
+            b[4] = year
+            b[5] = copies
+            b[7] = int(time.time())
+            found = True
             break
 
-    if not is_found:
-        print(f"\n❌ Book ID {target_id} not found or not active")
+    if not found:
+        print(f"\n❌ Book ID {book_id} not found or not active")
         return
 
-    with open(target_file, "wb") as file_out:
-        for rec in book_records:
-            packed_rec = book_layout.pack(*rec)
-            file_out.write(packed_rec)
+    with open(filename, "wb") as f:
+        for b in books:
+            record = books_struck.pack(*b)
+            f.write(record)
 
-    print(f"\n✅ Book ID {target_id} updated successfully")
+    print(f"\n✅ Book ID {book_id} updated successfully")
 
 def menu_add_member():
     print("\n=== Add New Member ===")
     try:
-        m_id = int(input("Enter Member ID: "))
-        init_status = 1
-        m_name = str(input("Enter Member Name: "))
-        b_year = int(input("Enter Birth Year: "))
-        default_max_loan = 5
+        member_id = int(input("Enter Member ID: "))
+        status = 1
+        name = str(input("Enter Member Name: "))
+        birth_year = int(input("Enter Birth Year: "))
+        max_loan = 5
 
-        add_members(m_id, init_status, m_name, b_year, default_max_loan)
-        print(f"\n✅ Member '{m_name}' added successfully!")
+        add_members(member_id, status, name, birth_year, max_loan)
+        print(f"\n✅ Member '{name}' added successfully!")
 
     except ValueError:
         print("\n❌ Invalid input. Please enter valid information.")
 
-def menu_view_members(target_file="members.dat"):
-    member_data = read_all_members(target_file)
-    if not member_data:
+def menu_view_members(filename="members.dat"):
+    members = read_all_members(filename)
+    if not members:
         print("No members found.")
         return
 
@@ -275,181 +273,186 @@ def menu_view_members(target_file="members.dat"):
     print(f"{'ID':<10} {'Name':<22} {'Birth Year':<17} {'Max Loan':<19} {'Status':<17}")
     print("-" * 83)
 
-    for item in member_data:
-        status_str = "Active" if item['status'] == 1 else "Deleted"
-        print(f"{item['member_id']:<10} {item['name']:<22} {item['birth_year']:<17} {item['max_loan']:<19} {status_str:<17}")
+    for m in members:
+        status_text = "Active" if m['status'] == 1 else "Deleted"
+        print(f"{m['member_id']:<10} {m['name']:<22} {m['birth_year']:<17} {m['max_loan']:<19} {status_text:<17}")
 
     print("-" * 83)
 
-def menu_edit_member(target_file="members.dat"):
+def menu_edit_member(filename="members.dat"):
     menu_view_members()
     try:
-        target_id = int(input("Enter Member ID to edit: "))
+        member_id = int(input("Enter Member ID to edit: "))
     except ValueError:
         print("\n❌ Invalid input. Please enter a number.")
         return
 
-    member_records = []
-    is_found = False
+    members = []
+    found = False
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(member_layout.size)
-                if len(raw_bytes) < member_layout.size:
+                data = f.read(members_struck.size)
+                if len(data) < members_struck.size:
                     break
-                unpacked_data = member_layout.unpack(raw_bytes)
-                member_records.append(list(unpacked_data))
+                unpacked = members_struck.unpack(data)
+                members.append(list(unpacked))
     except FileNotFoundError:
-        print(f"\n❌ File {target_file} not found")
+        print(f"\n❌ File {filename} not found")
         return
 
-    for rec in member_records:
-        if rec[0] == target_id and rec[1] == 1:
-            print(f"Editing Member ID {target_id}")
-            new_name = input(f"Enter new Name [{rec[2].decode('utf-8').rstrip(chr(0))}]: ")
+    for m in members:
+        if m[0] == member_id and m[1] == 1:
+            print(f"Editing Member ID {member_id}")
+            name = input(f"Enter new Name [{m[2].decode('utf-8').rstrip(chr(0))}]: ")
             try:
-                input_birth = input(f"Enter new Birth Year [{rec[3]}]: ")
-                new_birth = int(input_birth) if input_birth else rec[3]
-                input_max = input(f"Enter new Max Loan [{rec[4]}]: ")
-                new_max = int(input_max) if input_max else rec[4]
+                birth_year = input(f"Enter new Birth Year [{m[3]}]: ")
+                birth_year = int(birth_year) if birth_year else m[3]
+                max_loan = input(f"Enter new Max Loan [{m[4]}]: ")
+                max_loan = int(max_loan) if max_loan else m[4]
             except ValueError:
                 print("\n❌ Invalid number input. Edit canceled.")
                 return
 
-            rec[2] = new_name.encode("utf-8").ljust(50, b"\x00") if new_name else rec[2]
-            rec[3] = new_birth
-            rec[4] = new_max
-            rec[6] = int(time.time())  
-            is_found = True
+            m[2] = name.encode("utf-8").ljust(50, b"\x00") if name else m[2]
+            m[3] = birth_year
+            m[4] = max_loan
+            m[6] = int(time.time())  
+            found = True
             break
 
-    if not is_found:
-        print(f"\n❌ Member ID {target_id} not found or not active")
+    if not found:
+        print(f"\n❌ Member ID {member_id} not found or not active")
         return
 
-    with open(target_file, "wb") as file_out:
-        for rec in member_records:
-            packed_rec = member_layout.pack(*rec)
-            file_out.write(packed_rec)
+    with open(filename, "wb") as f:
+        for m in members:
+            record = members_struck.pack(*m)
+            f.write(record)
 
-    print(f"\n✅ Member ID {target_id} updated successfully")
+    print(f"\n✅ Member ID {member_id} updated successfully")
 
-def menu_delete_member(target_member_id, target_file="members.dat"):
-    member_records = []
-    is_found = False
+def menu_delete_member(member_id, filename="members.dat"):
+    members = []
+    found = False
     try:
-        with open(target_file, "rb") as file_in:
+        with open(filename, "rb") as f:
             while True:
-                raw_bytes = file_in.read(member_layout.size)
-                if len(raw_bytes) < member_layout.size:
+                data = f.read(members_struck.size)
+                if len(data) < members_struck.size:
                     break
-                unpacked_data = member_layout.unpack(raw_bytes)
-                member_records.append(list(unpacked_data))
+                unpacked = members_struck.unpack(data)
+                members.append(list(unpacked))
     except FileNotFoundError:
-        print(f"\n❌ File {target_file} not found")
+        print(f"\n❌ File {filename} not found")
         return
 
-    for rec in member_records:
-        if rec[0] == target_member_id and rec[1] == 1:
-            rec[1] = 0 
-            rec[6] = int(time.time()) 
-            is_found = True
+    for m in members:
+        if m[0] == member_id and m[1] == 1:
+            m[1] = 0 
+            m[6] = int(time.time()) 
+            found = True
             break
 
-    if not is_found:
-        print(f"\n❌ Member ID {target_member_id} not found or already deleted")
+    if not found:
+        print(f"\n❌ Member ID {member_id} not found or already deleted")
         return
 
-    with open(target_file, "wb") as file_out:
-        for rec in member_records:
-            packed_rec = member_layout.pack(*rec)
-            file_out.write(packed_rec)
+    with open(filename, "wb") as f:
+        for m in members:
+            record = members_struck.pack(*m)
+            f.write(record)
 
-    print(f"\n✅ Member ID {target_member_id} deleted successfully")
+    print(f"\n✅ Member ID {member_id} deleted successfully")
 
-def get_current_loans(loan_history):
-    latest_state = {}
-    for entry in loan_history:
-        pair_key = (entry["book_id"], entry["member_id"])
-        latest_state[pair_key] = entry
+def get_current_loans(loans):
+    latest = {}
+    for loan in loans:
+        key = (loan["book_id"], loan["member_id"])
+        latest[key] = loan
 
-    active_loans = [item for item in latest_state.values() if item["is_rented_after"] == 1]
-    return active_loans
-
+    current_loans = [l for l in latest.values() if l["is_rented_after"] == 1]
+    return current_loans
 def menu_borrow_book():
     print("\n=== Borrow Book ===")
 
-    all_books = read_all_books("books.dat")
-    all_members = read_all_members("members.dat")
+    books = read_all_books("books.dat")
+    members = read_all_members("members.dat")
 
+    # แสดงหนังสือที่ยังยืมได้
     print("Available Books:")
     print("-" * 90)
     print(f"{'ID':<6} {'Title':<45} {'Copies':<8} {'Borrowed':<10} {'Available':<10}")
     print("-" * 90)
 
-    loan_records = read_all_loans("loans.dat")
-    active_loans = get_current_loans(loan_records)
+    loans = read_all_loans("loans.dat")
+    current_loans = get_current_loans(loans)
 
-    borrowed_counts = {
-        book["book_id"]: sum(1 for loan in active_loans if loan["book_id"] == book["book_id"])
-        for book in all_books
+    borrowed_count = {
+        b["book_id"]: sum(1 for l in current_loans if l["book_id"] == b["book_id"])
+        for b in books
     }
 
-    for book in all_books:
-        if book["status"] == 1:
-            currently_borrowed = borrowed_counts.get(book["book_id"], 0)
-            available_qty = book["copies"] - currently_borrowed
-            print(f"{book['book_id']:<6} {book['title']:<45} {book['copies']:<8} {currently_borrowed:<10} {available_qty:<10}")
+    for b in books:
+        if b["status"] == 1:
+            borrowed = borrowed_count.get(b["book_id"], 0)
+            available = b["copies"] - borrowed
+            print(f"{b['book_id']:<6} {b['title']:<45} {b['copies']:<8} {borrowed:<10} {available:<10}")
 
     print("-" * 90)
 
     try:
-        selected_book_id = int(input("Enter Book ID to borrow: "))
-        selected_member_id = int(input("Enter Member ID: "))
+        book_id = int(input("Enter Book ID to borrow: "))
+        member_id = int(input("Enter Member ID: "))
     except ValueError:
         print("\n❌ Invalid input. Please enter numbers only.")
         return
 
-    target_book = next((b for b in all_books if b["book_id"] == selected_book_id and b["status"] == 1), None)
-    if not target_book:
-        print(f"\n❌ Book ID {selected_book_id} not found or not active")
+    # ตรวจสอบหนังสือ
+    book = next((b for b in books if b["book_id"] == book_id and b["status"] == 1), None)
+    if not book:
+        print(f"\n❌ Book ID {book_id} not found or not active")
         return
 
-    borrowed_now = borrowed_counts.get(selected_book_id, 0)
-    if borrowed_now >= target_book["copies"]:
+    borrowed_now = borrowed_count.get(book_id, 0)
+    if borrowed_now >= book["copies"]:
         print("\n❌ No copies available for this book")
         return
 
-    target_member = next((m for m in all_members if m["member_id"] == selected_member_id and m["status"] == 1), None)
-    if not target_member:
-        print(f"\n❌ Member ID {selected_member_id} not found or not active")
+    # ตรวจสอบสมาชิก
+    member = next((m for m in members if m["member_id"] == member_id and m["status"] == 1), None)
+    if not member:
+        print(f"\n❌ Member ID {member_id} not found or not active")
         return
 
-    start_date_str = datetime.now().strftime("%Y/%m/%d")
-    due_date_str = (datetime.now() + timedelta(days=30)).strftime("%Y/%m/%d")
+    # กำหนดวันยืม/คืน ถัดไป 1 เดือนจากวันที่ยืม
+    today = datetime.now().strftime("%Y/%m/%d")
+    due_date = (datetime.now() + timedelta(days=30)).strftime("%Y/%m/%d")
 
     add_loans(
-        operation_code=1,      
-        book_id=selected_book_id,
-        member_id=selected_member_id,
-        start_date=start_date_str,
-        end_date=due_date_str,
-        status_after=target_book["status"],
+        op_code=1,      
+        book_id=book_id,
+        member_id=member_id,
+        loan_date=today,
+        return_date=due_date,
+        status_after=book["status"],
         is_rented_after=1
     )
 
-    print(f"\n✅ Member '{target_member['name']}' borrowed '{target_book['title']}' until {due_date_str}")
+    print(f"\n✅ Member '{member['name']}' borrowed '{book['title']}' until {due_date}")
 
 def menu_return_book():
     print("\n=== Return Book ===")
 
-    loan_records = read_all_loans("loans.dat")
-    all_books = read_all_books("books.dat")
-    all_members = read_all_members("members.dat")
+    loans = read_all_loans("loans.dat")
+    books = read_all_books("books.dat")
+    members = read_all_members("members.dat")
 
-    active_loans = get_current_loans(loan_records)
+    # แสดงที่ยังไม่คืน
+    loans = read_all_loans("loans.dat")
+    current_loans = get_current_loans(loans)
 
-    if not active_loans:
+    if not current_loans:
         print("No books currently borrowed.")
         return
 
@@ -457,46 +460,120 @@ def menu_return_book():
     print(f"{'BookID':<8} {'Title':<45} {'MemberID':<10} {'Member Name':<20} {'Loan Date':<10}")
     print("-" * 97)
 
-    for item in active_loans:
-        b_title = next((b["title"] for b in all_books if b["book_id"] == item["book_id"]), "Unknown")
-        m_name = next((m["name"] for m in all_members if m["member_id"] == item["member_id"]), "Unknown")
-        print(f"{item['book_id']:<8} {b_title:<45} {item['member_id']:<10} {m_name:<20} {item['loan_date']:<10}")
+    for l in current_loans:
+        book_title = next((b["title"] for b in books if b["book_id"] == l["book_id"]), "Unknown")
+        member_name = next((m["name"] for m in members if m["member_id"] == l["member_id"]), "Unknown")
+        print(f"{l['book_id']:<8} {book_title:<45} {l['member_id']:<10} {member_name:<20} {l['loan_date']:<10}")
 
     print("-" * 97)
 
     try:
-        selected_book_id = int(input("Enter Book ID to return: "))
-        selected_member_id = int(input("Enter Member ID: "))
+        book_id = int(input("Enter Book ID to return: "))
+        member_id = int(input("Enter Member ID: "))
     except ValueError:
         print("\n❌ Invalid input. Please enter numbers only.")
         return
 
-    target_loan = next((item for item in active_loans if item["book_id"] == selected_book_id and item["member_id"] == selected_member_id), None)
-    if not target_loan:
+    loan = next((l for l in current_loans if l["book_id"] == book_id and l["member_id"] == member_id), None)
+    if not loan:
         print("\n❌ No matching active loan found")
         return
 
-    return_date_str = datetime.now().strftime("%Y/%m/%d")
-    target_book = next((b for b in all_books if b["book_id"] == selected_book_id), None)
+    today = datetime.now().strftime("%Y/%m/%d")
+    book = next((b for b in books if b["book_id"] == book_id), None)
 
     add_loans(
-        operation_code=2,      
-        book_id=selected_book_id,
-        member_id=selected_member_id,
-        start_date=target_loan["loan_date"], 
-        end_date=return_date_str,  
-        status_after=target_book["status"] if target_book else 1,
+        op_code=2,      
+        book_id=book_id,
+        member_id=member_id,
+        loan_date=loan["loan_date"], 
+        return_date=today,  
+        status_after=book["status"] if book else 1,
         is_rented_after=0 
     )
 
-    print(f"\n✅ Book ID {selected_book_id} has been returned by Member ID {selected_member_id}")
+    print(f"\n✅ Book ID {book_id} has been returned by Member ID {member_id}")
+
+def menu_view_overdue_loans():
+    print("\n=== Overdue Books ===")
+
+    loans = read_all_loans("loans.dat")
+    books = read_all_books("books.dat")
+    members = read_all_members("members.dat")
+
+    current_loans = get_current_loans(loans)
+
+    if not current_loans:
+        print("No books currently borrowed.")
+        return
+
+    today = datetime.now().date()
+    overdue_loans = []
+
+    for loan in current_loans:
+        try:
+            due_date = datetime.strptime(
+                loan["return_date"], "%Y/%m/%d"
+            ).date()
+
+            if today > due_date:
+                overdue_days = (today - due_date).days
+
+                overdue_loans.append({
+                    "loan": loan,
+                    "overdue_days": overdue_days
+                })
+
+        except ValueError:
+            continue
+
+    if not overdue_loans:
+        print("\n❌ No overdue books.")
+        return
+
+    print("-" * 97)
+    print(
+        f"{'BookID':<8} "
+        f"{'Title':<100} "
+        f"{'MemberID':<10} "
+        f"{'Member Name':<20} "
+        f"{'Overdue':<10}"
+    )
+    print("-" * 97)
+
+    for item in overdue_loans:
+        loan = item["loan"]
+        overdue_days = item["overdue_days"]
+
+        book_title = next(
+            (b["title"] for b in books
+             if b["book_id"] == loan["book_id"]),
+            "Unknown"
+        )
+
+        member_name = next(
+            (m["name"] for m in members
+             if m["member_id"] == loan["member_id"]),
+            "Unknown"
+        )
+
+        print(
+            f"{loan['book_id']:<8} "
+            f"{book_title:<35} "
+            f"{loan['member_id']:<10} "
+            f"{member_name:<20} "
+            f"{overdue_days} days"
+        )
+
+    print("-" * 97)
+    print(f"Total overdue books: {len(overdue_loans)}")
 
 def menu_view_all_loans():
-    loan_records = read_all_loans("loans.dat")
-    all_books = read_all_books("books.dat")
-    all_members = read_all_members("members.dat")
+    loans = read_all_loans("loans.dat")
+    books = read_all_books("books.dat")
+    members = read_all_members("members.dat")
 
-    if not loan_records:
+    if not loans:
         print("\nNo loans found.")
         return
 
@@ -504,42 +581,42 @@ def menu_view_all_loans():
     print(f"{'Timestamp':<20} {'BookID':<7} {'Title':<45} {'MemberID':<10} {'Member Name':<20} {'Type':<8} {'Status':<6}")
     print("-" * 124)
 
-    for record in loan_records:
-        b_title = next((b["title"] for b in all_books if b["book_id"] == record["book_id"]), "Unknown")
-        m_name = next((m["name"] for m in all_members if m["member_id"] == record["member_id"]), "Unknown")
-        action_type = "Borrow" if record["op_code"] == 1 else "Return"
-        rental_status = "Borrowed" if record["is_rented_after"] == 1 else "Returned"
+    for loan in loans:
+        book_title = next((b["title"] for b in books if b["book_id"] == loan["book_id"]), "Unknown")
+        member_name = next((m["name"] for m in members if m["member_id"] == loan["member_id"]), "Unknown")
+        loan_type = "Borrow" if loan["op_code"] == 1 else "Return"
+        status_text = "Borrowed" if loan["is_rented_after"] == 1 else "Returned"
 
-        print(f"{record['ts']:<20} {record['book_id']:<7} {b_title:<45} {record['member_id']:<10} {m_name:<20} {action_type:<8} {rental_status:<6}")
+        print(f"{loan['ts']:<20} {loan['book_id']:<7} {book_title:<45} {loan['member_id']:<10} {member_name:<20} {loan_type:<8} {status_text:<6}")
 
     print("-" * 124)
 
 def menu_view_current_loans():
-    loan_records = read_all_loans("loans.dat")
-    active_loans = get_current_loans(loan_records)
+    loans = read_all_loans("loans.dat")
+    current_loans = get_current_loans(loans)
 
-    if not active_loans:
+    if not current_loans:
         print("\nNo books currently borrowed.")
         return
 
-    all_books = read_all_books("books.dat")
-    all_members = read_all_members("members.dat")
+    books = read_all_books("books.dat")
+    members = read_all_members("members.dat")
 
     print("\n=== Current Loans ===")
-    print("-" * 97)
+    print("-" * 124)
     print(f"{'BookID':<8} {'Title':<45} {'MemberID':<10} {'Member Name':<20} {'Loan Date':<10}")
-    print("-" * 97)
+    print("-" * 124)
 
-    for item in active_loans:
-        b_title = next((b["title"] for b in all_books if b["book_id"] == item["book_id"]), "Unknown")
-        m_name = next((m["name"] for m in all_members if m["member_id"] == item["member_id"]), "Unknown")
-        print(f"{item['book_id']:<8} {b_title:<45} {item['member_id']:<10} {m_name:<20} {item['loan_date']:<10}")
+    for l in current_loans:
+        book_title = next((b["title"] for b in books if b["book_id"] == l["book_id"]), "Unknown")
+        member_name = next((m["name"] for m in members if m["member_id"] == l["member_id"]), "Unknown")
+        print(f"{l['book_id']:<8} {book_title:<45} {l['member_id']:<10} {member_name:<20} {l['loan_date']:<10}")
 
-    print("-" * 97)
+    print("-" * 124)
 
+############################################ FUNCTIONS MENU ############################################################
 ################################################ REPORT ################################################################
-
-def gen_report(output_filename="report.pdf"):
+def generate_report(report_file="report.pdf"):
     all_books = read_all_books("books.dat")
     all_members = read_all_members("members.dat")
     loan_records = read_all_loans("loans.dat")
@@ -563,7 +640,7 @@ def gen_report(output_filename="report.pdf"):
 
     # ตั้งค่าเอกสาร PDF 
     doc = SimpleDocTemplate(
-        output_filename,
+        report_file,
         pagesize=landscape(A4),
         rightMargin=30,
         leftMargin=30,
@@ -701,10 +778,11 @@ def gen_report(output_filename="report.pdf"):
     elements.append(Paragraph(stats_text, body_style))
 
     doc.build(elements)
-    print(f"\n✅ PDF Report generated: {output_filename}")
+    print(f"\n✅ PDF Report generated: {report_file}")
 
+
+################################################ REPORT ################################################################
 ################################################# MENU #################################################################
-
 def main_menu():
     while True:
         print("\n=== Library Borrow System ===")
@@ -713,22 +791,22 @@ def main_menu():
         print("3. Manage Loans")
         print("4. Generate report")
         print("5. Exit")
-        user_choice = input("Select an option (1-5): ")
+        choice = input("Select an option (1-5): ")
 
-        if user_choice == "1":
+        if choice == "1":
             manage_books()
-        elif user_choice == "2":
+        elif choice == "2":
             manage_members()
-        elif user_choice == "3":
+        elif choice == "3":
             manage_loans()
-        elif user_choice == "4":
-            gen_report("report.pdf")
-        elif user_choice == "5":
-            gen_report("report.pdf")
+        elif choice == "4":
+            generate_report("report.pdf")
+        elif choice == "5":
             print("\nExiting program...")
             break
         else:
             print("\n❌ Invalid option! Please select 1-5.")
+
 
 def manage_books():
     while True:
@@ -738,27 +816,28 @@ def manage_books():
         print("3. Edit Book")
         print("4. Delete Book")
         print("5. Back to Main Menu")
-        user_choice = input("Select an option (1-5): ")
+        choice = input("Select an option (1-5): ")
 
-        if user_choice == "1":
+        if choice == "1":
             menu_add_book()
-        elif user_choice == "2":
+        elif choice == "2":
             menu_view_books()
-        elif user_choice == "3":
+        elif choice == "3":
             menu_edit_book()
-        elif user_choice == "4":
+        elif choice == "4":
             menu_view_books()
             while True:
                 try:
-                    target_id = int(input("Enter Book ID: "))
-                    menu_delete_book(target_id)
+                    book_id = int(input("Enter Book ID: "))
+                    menu_delete_book(book_id)
                     break
                 except ValueError:
                     print("\n❌ Invalid input. Please enter a number.")
-        elif user_choice == "5":
+        elif choice == "5":
             break
         else:
             print("\n❌ Invalid option! Please select 1-5.")
+
 
 def manage_members():
     while True:
@@ -769,26 +848,27 @@ def manage_members():
         print("4. Delete Member")
         print("5. Back to Main Menu")
 
-        user_choice = input("Select an option (1-5): ")
-        if user_choice == "1":
+        choice = input("Select an option (1-5): ")
+        if choice == "1":
             menu_add_member()
-        elif user_choice == "2":
+        elif choice == "2":
             menu_view_members()
-        elif user_choice == "3":
+        elif choice == "3":
             menu_edit_member()
-        elif user_choice == "4":
+        elif choice == "4":
             menu_view_members()
             while True:
                 try:
-                    target_id = int(input("Enter Member ID: "))
-                    menu_delete_member(target_id)
+                    member_id = int(input("Enter Member ID: "))
+                    menu_delete_member(member_id)
                     break
                 except ValueError:
                     print("\n❌ Invalid input. Please enter a number.")
-        elif user_choice == "5":
+        elif choice == "5":
             break
         else:
             print("\n❌ Invalid option! Please select 1-5.")
+
 
 def manage_loans():
     while True:
@@ -796,23 +876,26 @@ def manage_loans():
         print("1. Borrow Book")
         print("2. Return Book")
         print("3. View All Loans")
-        print("4. Current Loans")
-        print("5. Back to Main Menu")
+        print("4. View overdue Loans")
+        print("5. Current Loans")
+        print("6. Back to Main Menu")
 
-        user_choice = input("Select an option (1-5): ")
-        if user_choice == "1":
+        choice = input("Select an option (1-6): ")
+        if choice == "1":
             menu_borrow_book()
-        elif user_choice == "2":
+        elif choice == "2":
             menu_return_book()
-        elif user_choice == "3":
+        elif choice == "3":
             menu_view_all_loans()
-        elif user_choice == "4":
+        elif choice == "4":
+            menu_view_overdue_loans()
+        elif choice == "5":
             menu_view_current_loans()
-        elif user_choice == "5":
+        elif choice == "6":
             break
         else:
-            print("\n❌ Invalid option! Please select 1-5.")
+            print("\n❌ Invalid option! Please select 1-6.")
 
 ################################################# MENU #################################################################
 
-main_menu()
+main_menu()#  :)
