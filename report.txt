@@ -1,0 +1,44 @@
+Library Borrow System - Summary Report
+Generated At : 2026-09-22 13:25 (+0700) 
+App Version : 2.0
+Encoding : UTF-8 (fixed-length)
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+BookID | Title                                         | Author                         | Year | Copies | Borrowed By         | Status
+--------------------------------------------------------------------------------------------------------------------------------------------
+1001   | ARTIFICIAL INTELLIGENCE: A MODERN APPROACH    | STUART RUSSELL & PETER NORVIG  | 2021 | 15     | 1.Lucas             | Active
+       |                                               |                                |      |        | 2.Matthew           | 
+1002   | CLEAN CODE: A HANDBOOK OF AGILE SOFTWARE      | ROBERT C. MARTIN               | 2008 | 8      | 0                   | Active
+1003   | DESIGN PATTERNS: ELEMENTS OF REUSABLE SOFTWARE | ERICH GAMMA ET AL.             | 1994 | 10     | 1.Steven            | Active
+1004   | THE PRAGMATIC PROGRAMMER                      | ANDREW HUNT & DAVID THOMAS     | 2019 | 25     | 0                   | Active
+1005   | INTRODUCTION TO ALGORITHMS                    | THOMAS H. CORMEN               | 2002 | 18     | 1.Sturrigd          | Active
+1006   | QUANTUM COMPUTING FOR EVERYONE                | CHRIS BERNHARDT                | 2020 | 12     | 1.Sofia             | Active
+1007   | CYBERSECURITY ESSENTIALS                      | CHARLES J. BROOKS              | 2018 | 14     | 1.Sofia             | Active
+1008   | DATA SCIENCE FROM SCRATCH                     | JOEL GRUS                      | 2019 | 22     | 0                   | Active
+1009   | HEAD FIRST JAVA                               | KATHY SIERRA & BERT BATES      | 2022 | 16     | 1.Thomas            | Active
+1010   | MACHINE LEARNING YEARNING                     | ANDREW NG                      | 2018 | 30     | 0                   | Active
+1011   | DESIGNING DATA-INTENSIVE APPLICATIONS         | MARTIN KLEPPMANN               | 2017 | 20     | 1.Lucas             | Active
+       |                                               |                                |      |        | 2.Olivia            | 
+       |                                               |                                |      |        | 3.Michael           | 
+1012   | LEARNING SQL                                  | ALAN BEAULIEU                  | 2020 | 15     | 0                   | Active
+1013   | THE ART OF COMPUTER PROGRAMMING               | DONALD KNUTH                   | 2011 | 5      | 1.Matthew           | Active
+1014   | DEEP LEARNING WITH PYTHON                     | FRANÇOIS CHOLLET               | 2021 | 12     | 1.Henry             | Active
+       |                                               |                                |      |        | 2.Olivia            | 
+1015   | OPERATING SYSTEM CONCEPTS                     | ABRAHAM SILBERSCHATZ           | 2018 | 25     | 0                   | Active
+1016   | CLOUD NATIVE PATTERNS                         | CORNELIA DAVIS                 | 2019 | 10     | 1.Sturrigd          | Active
+1017   | YOU DON'T KNOW JS YET                         | KYLE SIMPSON                   | 2020 | 30     | 0                   | Active
+1018   | SITE RELIABILITY ENGINEERING                  | BETSY BEYER ET AL.             | 2016 | 12     | 1.Sturrigd          | Active
+1019   | BUILDING MICROSERVICES                        | SAM NEWMAN                     | 2021 | 18     | 0                   | Active
+1020   | RUST PROGRAMMING LANGUAGE                     | STEVE KLABNIK & CAROL NICHOLS  | 2023 | 24     | 1.Michael           | Active
+
+Summary (Active Books Only)
+- Total Books   : 20
+- Active Books  : 20
+- Deleted Books : 0
+- Borrowed Now  : 16
+- Available Now : 325
+
+Borrow Statistics (Active only)
+- Most Borrowed Book : DESIGNING DATA-INTENSIVE APPLICATIONS (3 times)
+- Currently Borrowed : 16
+- Active Members     : 10
