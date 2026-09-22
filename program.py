@@ -703,7 +703,7 @@ def generate_report(report_file="report.pdf"):
 
         table_data.append([
             str(book['book_id']),
-            book['title'],
+            book['title'][:30] + "..." if len(book['title']) > 30 else book['title'],
             book['author'],
             str(book['year']),
             str(book['copies']),
