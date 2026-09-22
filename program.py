@@ -177,6 +177,38 @@ def menu_delete_book(book_id, filename="books.dat"):
 
     print(f"\n✅ Book ID {book_id} deleted successfully")
 
+def menu_top_borrowed_books():
+    print("\n=== Top 3 Most Borrowed Books ===")
+    
+    books = read_all_books("books.dat")
+    loans = read_all_loans("loans.dat")
+    
+    if not books or not loans:
+        print("\nNo data available.")
+        return
+
+    borrow_count = {}
+    for loan in loans:
+        if loan["op_code"] == 1:
+            b_id = loan["book_id"]
+            borrow_count[b_id] = borrow_count.get(b_id, 0) + 1
+
+    if not borrow_count:
+        print("\nNo borrowing history found.")
+        return
+
+    sorted_borrowed = sorted(borrow_count.items(), key=lambda x: x[1], reverse=True)[:3]
+
+    print("-" * 80)
+    print(f"{'Rank':<6} {'Book ID':<10} {'Title':<45} {'Times Borrowed':<15}")
+    print("-" * 80)
+
+    for rank, (b_id, count) in enumerate(sorted_borrowed, start=1):
+        book_title = next((b["title"] for b in books if b["book_id"] == b_id), "Unknown")
+        print(f"{rank:<6} {b_id:<10} {book_title:<45} {count:<15}")
+
+    print("-" * 80)
+
 def menu_view_books(filename="books.dat"):
     books = read_all_books(filename)
     
@@ -816,18 +848,21 @@ def manage_books():
         print("\n--- Manage Books ---")
         print("1. Add Book")
         print("2. View All Books")
-        print("3. Edit Book")
-        print("4. Delete Book")
-        print("5. Back to Main Menu")
-        choice = input("Select an option (1-5): ")
+        print("3. View Top 3 Books")
+        print("4. Edit book")
+        print("5. Delete Book")
+        print("6. Back to Main Menu")
+        choice = input("Select an option (1-6): ")
 
         if choice == "1":
             menu_add_book()
         elif choice == "2":
             menu_view_books()
         elif choice == "3":
-            menu_edit_book()
+            menu_top_borrowed_books()
         elif choice == "4":
+            menu_edit_book()
+        elif choice == "5":
             menu_view_books()
             while True:
                 try:
@@ -836,11 +871,10 @@ def manage_books():
                     break
                 except ValueError:
                     print("\n❌ Invalid input. Please enter a number.")
-        elif choice == "5":
+        elif choice == "6":
             break
         else:
-            print("\n❌ Invalid option! Please select 1-5.")
-
+            print("\n❌ Invalid option! Please select 1-6.")
 
 def manage_members():
     while True:
