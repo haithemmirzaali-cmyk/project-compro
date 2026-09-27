@@ -1,11 +1,6 @@
 import struct
 import time
 from datetime import datetime, timezone, timedelta
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 ############################################# BINARY FILE ##############################################################
 books_struck = struct.Struct("<i50si30siiiI")
@@ -87,7 +82,6 @@ def read_all_members(filename="members.dat"):
                 if len(data) < members_struck.size:
                     break
                 unpacked = members_struck.unpack(data)
-                
                 member = {
                     "member_id": unpacked[0],
                     "status": unpacked[1],
@@ -967,7 +961,7 @@ def manage_loans():
 
 def manage_report():
     while True:
-        print("\n--- Manage Loans ---")
+        print("\n--- Manage Report ---")
         print("1. Popular Book Report")
         print("2. Users Report ")
         print("3. Books Report")

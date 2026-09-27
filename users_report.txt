@@ -1,0 +1,16 @@
+====================================================================================================
+                         USERS REPORT
+====================================================================================================
+Member ID      Member Name              Borrowed    Borrowed Books
+----------------------------------------------------------------------------------------------------
+68001          Daniel                   4           MUST KNOW HIGH SCHOOL COMPUTER PROGRAMMING, B...
+68002          Michael                  2           SWIFT FOR PROGRAMMERS, DATABASE SYSTEMS
+68003          Benjamin                 0           -
+68004          Matthew                  2           PATRIOT, COMPUTER NETWORKS AND INTERNETS
+68005          Sofia                    2           CONCEPTS OF PROGRAMMING LANGUAGES, DIGITAL MA...
+68006          Thomas                   1           C PROGRAMMING ABSOLUTE BEGINNER'S GUIDE
+68007          Henry                    1           PLUCKED
+68008          Steven                   1           AI-ASSISTED PROGRAMMING
+68009          Olivia                   2           PLUCKED, DATABASE SYSTEMS
+68010          Lucas                    2           DATABASE SYSTEMS, COMPUTER NETWORKS AND INTER...
+----------------------------------------------------------------------------------------------------
