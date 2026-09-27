@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
@@ -177,53 +178,18 @@ def menu_delete_book(book_id, filename="books.dat"):
 
     print(f"\n✅ Book ID {book_id} deleted successfully")
 
-def menu_top_borrowed_books():
-    print("\n=== Top 3 Most Borrowed Books ===")
-    
-    books = read_all_books("books.dat")
-    loans = read_all_loans("loans.dat")
-    
-    if not books or not loans:
-        print("\nNo data available.")
-        return
-
-    borrow_count = {}
-    for loan in loans:
-        if loan["op_code"] == 1:
-            b_id = loan["book_id"]
-            borrow_count[b_id] = borrow_count.get(b_id, 0) + 1
-
-    if not borrow_count:
-        print("\nNo borrowing history found.")
-        return
-
-    sorted_borrowed = sorted(borrow_count.items(), key=lambda x: x[1], reverse=True)[:3]
-
-    print("-" * 80)
-    print(f"{'Rank':<6} {'Book ID':<10} {'Title':<45} {'Times Borrowed':<15}")
-    print("-" * 80)
-
-    for rank, (b_id, count) in enumerate(sorted_borrowed, start=1):
-        book_title = next((b["title"] for b in books if b["book_id"] == b_id), "Unknown")
-        print(f"{rank:<6} {b_id:<10} {book_title:<45} {count:<15}")
-
-    print("-" * 80)
-
 def menu_view_books(filename="books.dat"):
     books = read_all_books(filename)
-    
-    active_books = [b for b in books if b['status'] == 1]
-
-    if not active_books:
-        print("\nNo active books found.")
+    if not books:
+        print("No books found.")
         return
 
     print("-" * 108)
     print(f"{'ID':<6} {'Title':<45} {'Author':<25} {'Year':<6} {'Copies':<7} {'Status':<8}")
     print("-" * 108)
 
-    for b in active_books:
-        status_text = "Active"
+    for b in books:
+        status_text = "Active" if b['status'] == 1 else "Deleted"
         print(f"{b['book_id']:<6} {b['title']:<45} {b['author']:<25} {b['year']:<6} {b['copies']:<7} {status_text:<8}")
 
     print("-" * 108)
@@ -309,7 +275,7 @@ def menu_view_members(filename="members.dat"):
     print("-" * 83)
 
     for m in members:
-        status_text = "Active" if m['status'] == 1 else "Unactive"
+        status_text = "Active" if m['status'] == 1 else "Deleted"
         print(f"{m['member_id']:<10} {m['name']:<22} {m['birth_year']:<17} {m['max_loan']:<19} {status_text:<17}")
 
     print("-" * 83)
@@ -621,7 +587,6 @@ def menu_view_all_loans():
         member_name = next((m["name"] for m in members if m["member_id"] == loan["member_id"]), "Unknown")
         loan_type = "Borrow" if loan["op_code"] == 1 else "Return"
         status_text = "Borrowed" if loan["is_rented_after"] == 1 else "Returned"
-
         print(f"{loan['ts']:<20} {loan['book_id']:<7} {book_title:<45} {loan['member_id']:<10} {member_name:<20} {loan_type:<8} {status_text:<6}")
 
     print("-" * 124)
@@ -651,172 +616,244 @@ def menu_view_current_loans():
 
 ############################################ FUNCTIONS MENU ############################################################
 ################################################ REPORT ################################################################
-def generate_report(report_file="report.pdf"):
-    all_books = read_all_books("books.dat")
-    all_members = read_all_members("members.dat")
-    loan_records = read_all_loans("loans.dat")
+def menu_popular_book_report():
+    loans = read_all_loans()
+    books = read_all_books()
 
-    tz_utc7 = timezone(timedelta(hours=7))
-    generated_timestamp = datetime.now(tz_utc7).strftime("%Y-%m-%d %H:%M (%z)")
+    if not loans:
+        print("\nไม่มีข้อมูลการยืมหนังสือ")
+        return
 
-    latest_loans_map = {}
-    for entry in loan_records:
-        pair_key = (entry["book_id"], entry["member_id"])
-        latest_loans_map[pair_key] = entry  
+    # เก็บจำนวนครั้งที่หนังสือถูกยืม
+    borrow_count = {}
 
-    active_borrowers_map = {}
-    for (b_id, m_id), entry in latest_loans_map.items():
-        if entry["is_rented_after"] == 1:
-            m_name = next((m["name"] for m in all_members if m["member_id"] == m_id), "Unknown")
-            active_borrowers_map.setdefault(b_id, []).append(m_name)
+    for loan in loans:
+        if loan["op_code"] == 1:
+            book_id = loan["book_id"]
+            borrow_count[book_id] = borrow_count.get(book_id, 0) + 1
 
-    def get_status_text(val):
-        return "Active" if val == 1 else "Deleted"
+    if not borrow_count:
+        print("\nยังไม่มีข้อมูลการยืมหนังสือ")
+        return
 
-    # ตั้งค่าเอกสาร PDF 
-    doc = SimpleDocTemplate(
-        report_file,
-        pagesize=landscape(A4),
-        rightMargin=30,
-        leftMargin=30,
-        topMargin=30,
-        bottomMargin=30
+    # เรียงจากจำนวนยืมมากไปน้อย
+    popular_books = sorted(
+        borrow_count.items(),
+        key=lambda x: x[1],
+        reverse=True
     )
 
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        leading=22,
-        textColor=colors.HexColor("#1A365D")
+    print("\n" + "=" * 80)
+    print("                    POPULAR BOOK REPORT")
+    print("=" * 80)
+
+    print(f"{'Rank':<8}{'Book ID':<12}{'Book Title':<45}{'Borrow':>10}")
+    print("-" * 80)
+
+    table_lines = []
+    table_lines.append("=" * 80)
+    table_lines.append("                    POPULAR BOOK REPORT")
+    table_lines.append("=" * 80)
+    table_lines.append(
+        f"{'Rank':<8}{'Book ID':<12}{'Book Title':<45}{'Borrow':>10}"
     )
-    subtitle_style = ParagraphStyle(
-        'SubtitleStyle',
-        parent=styles['Normal'],
-        fontSize=15,
-        leading=14,
-        textColor=colors.HexColor("#4A5568")
+    table_lines.append("-" * 80)
+
+    rank = 1
+
+    for book_id, count in popular_books:
+        book = next(
+            (b for b in books if b["book_id"] == book_id),
+            None
+        )
+
+        if book:
+            title = book["title"]
+
+            # ป้องกันชื่อหนังสือยาวเกินตาราง
+            if len(title) > 42:
+                title = title[:42] + "..."
+
+            line = f"{rank:<8}{book_id:<12}{title:<45}{count:>10}"
+
+            print(line)
+            table_lines.append(line)
+
+            rank += 1
+
+    print("-" * 80)
+
+    table_lines.append("-" * 80)
+
+    # บันทึกเป็น TXT
+    with open("popular_book_report.txt", "w", encoding="utf-8") as f:
+        for line in table_lines:
+            f.write(line + "\n")
+
+    print("\n✅ Report generated: popular_book_report.txt")
+
+def menu_users_report():
+    members = read_all_members()
+    books = read_all_books()
+    loans = read_all_loans()
+
+    print("\n" + "=" * 100)
+    print("                         USERS REPORT")
+    print("=" * 100)
+
+    print(
+        f"{'Member ID':<15}"
+        f"{'Member Name':<25}"
+        f"{'Borrowed':<12}"
+        f"{'Borrowed Books'}"
     )
-    heading_style = ParagraphStyle(
-        'HeadingStyle',
-        parent=styles['Heading2'],
-        fontSize=12,
-        leading=16,
-        textColor=colors.HexColor("#2B6CB0"),
-        spaceBefore=12,
-        spaceAfter=6
+
+    print("-" * 100)
+
+    table_lines = []
+    table_lines.append("=" * 100)
+    table_lines.append("                         USERS REPORT")
+    table_lines.append("=" * 100)
+    table_lines.append(
+        f"{'Member ID':<15}"
+        f"{'Member Name':<25}"
+        f"{'Borrowed':<12}"
+        f"{'Borrowed Books'}"
     )
-    body_style = ParagraphStyle(
-        'BodyStyle',
-        parent=styles['Normal'],
-        fontSize=16,
-        leading=12
-    )
+    table_lines.append("-" * 100)
 
-    elements = []
+    current_loans = get_current_loans(loans)
 
-    # Header
-    elements.append(Paragraph("Library Borrow System - Summary Report", title_style))
-    elements.append(Paragraph(f"<b>Generated At:</b> {generated_timestamp} | <b>App Version:</b> 2.0", subtitle_style))
-    elements.append(Spacer(1, 15))
+    for member in members:
 
-    # Table Data
-    table_data = [
-        ["BookID", "Title", "Author", "Year", "Copies", "Borrowed By", "Status"]
-    ]
+        member_id = member["member_id"]
+        member_name = member["name"]
 
-    for book in all_books:
-        if book["status"] != 1:
-            continue
+        borrowed_books = []
 
-        borrowers = active_borrowers_map.get(book["book_id"], [])
-        if not borrowers:
-            borrowed_str = "0"
+        for loan in current_loans:
+
+            if loan["member_id"] == member_id:
+
+                book = next(
+                    (b for b in books if b["book_id"] == loan["book_id"]),
+                    None
+                )
+
+                if book:
+                    borrowed_books.append(book["title"])
+
+        borrowed_count = len(borrowed_books)
+
+        if borrowed_books:
+            titles = ", ".join(borrowed_books)
+
+            # ป้องกันข้อความยาวเกินตาราง
+            if len(titles) > 45:
+                titles = titles[:45] + "..."
         else:
-            borrowed_str = "\n".join([f"{idx}. {name}" for idx, name in enumerate(borrowers, start=1)])
+            titles = "-"
 
-        table_data.append([
-            str(book['book_id']),
-            book['title'][:30] + "..." if len(book['title']) > 30 else book['title'],
-            book['author'][:20] + "..." if len(book['author']) > 20 else book['author'],
-            str(book['year']),
-            str(book['copies']),
-            borrowed_str,
-            get_status_text(book['status'])
-        ])
+        line = (
+            f"{member_id:<15}"
+            f"{member_name:<25}"
+            f"{borrowed_count:<12}"
+            f"{titles}"
+        )
 
-    table = Table(table_data, colWidths=[55, 230, 160, 45, 55, 150, 60])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2B6CB0")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN', (3, 0), (4, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]),
-    ]))
+        print(line)
+        table_lines.append(line)
 
-    elements.append(table)
-    elements.append(Spacer(1, 15))
+    print("-" * 100)
 
-    # Calculations
-    total_book_count = len(all_books)
-    active_book_count = sum(1 for b in all_books if b["status"] == 1)
-    deleted_book_count = total_book_count - active_book_count
-    total_borrowed_now = sum(len(names) for names in active_borrowers_map.values())
-    total_available_now = sum(
-        (b["copies"] - len(active_borrowers_map.get(b["book_id"], []))) for b in all_books if b["status"] == 1
+    table_lines.append("-" * 100)
+
+    with open("users_report.txt", "w", encoding="utf-8") as f:
+        for line in table_lines:
+            f.write(line + "\n")
+
+    print("\n✅ Report generated: users_report.txt")
+
+def menu_books_report():
+    books = read_all_books()
+    loans = read_all_loans()
+
+    print("\n" + "=" * 100)
+    print("                         BOOKS REPORT")
+    print("=" * 100)
+
+    print(
+        f"{'ID':<8}"
+        f"{'Book Title':<45}"
+        f"{'Total':<10}"
+        f"{'Available':<12}"
+        f"{'Borrowed Times':<15}"
     )
 
-    borrow_freq = {b["book_id"]: 0 for b in all_books}
-    for record in loan_records:
-        if record["op_code"] == 1:
-            borrow_freq[record["book_id"]] += 1
+    print("-" * 100)
 
-    if borrow_freq:
-        top_book_id = max(borrow_freq, key=borrow_freq.get, default=None)
-        if top_book_id is not None:
-            max_borrow_count = borrow_freq[top_book_id]
-            top_book_title = next((b["title"] for b in all_books if b["book_id"] == top_book_id), "N/A")
-        else:
-            top_book_title = "N/A"
-            max_borrow_count = 0
-    else:
-        top_book_title = "N/A"
-        max_borrow_count = 0
+    table_lines = []
+    table_lines.append("=" * 100)
+    table_lines.append("                         BOOKS REPORT")
+    table_lines.append("=" * 100)
+    table_lines.append(
+        f"{'ID':<8}"
+        f"{'Book Title':<45}"
+        f"{'Total':<10}"
+        f"{'Available':<12}"
+        f"{'Borrowed Times':<15}"
+    )
+    table_lines.append("-" * 100)
 
-    active_member_count = sum(1 for m in all_members if m["status"] == 1)
+    for book in books:
 
-    # Summary Text
-    elements.append(Paragraph("Summary (Active Books Only)", heading_style))
-    summary_text = f"""
-    • <b>Total Books:</b> {total_book_count} | 
-    <b>Active Books:</b> {active_book_count} | 
-    <b>Deleted Books:</b> {deleted_book_count}<br/>
-    • <b>Borrowed Now:</b> {total_borrowed_now} | 
-    <b>Available Now:</b> {total_available_now}
-    """
-    elements.append(Paragraph(summary_text, body_style))
+        book_id = book["book_id"]
+        title = book["title"]
+        total_copies = book["copies"]
 
-    elements.append(Paragraph("Borrow Statistics", heading_style))
-    stats_text = f"""
-    • <b>Most Borrowed Book:</b> {top_book_title} ({max_borrow_count} times)<br/>
-    • <b>Currently Borrowed:</b> {total_borrowed_now}<br/>
-    • <b>Active Members:</b> {active_member_count}
-    """
-    elements.append(Paragraph(stats_text, body_style))
+        # นับจำนวนที่กำลังถูกยืม
+        current_borrowed = 0
 
-    doc.build(elements)
-    print(f"\n✅ PDF Report generated: {report_file}")
+        for loan in get_current_loans(loans):
+            if loan["book_id"] == book_id:
+                current_borrowed += 1
 
+        available = total_copies - current_borrowed
+
+        # นับจำนวนครั้งที่เคยยืม
+        total_borrowed_times = 0
+
+        for loan in loans:
+            if loan["book_id"] == book_id and loan["op_code"] == 1:
+                total_borrowed_times += 1
+
+        # ป้องกันชื่อหนังสือยาวเกินตาราง
+        if len(title) > 42:
+            title = title[:42] + "..."
+
+        line = (
+            f"{book_id:<8}"
+            f"{title:<45}"
+            f"{total_copies:<10}"
+            f"{available:<12}"
+            f"{total_borrowed_times:<15}"
+        )
+
+        print(line)
+        table_lines.append(line)
+
+    print("-" * 100)
+
+    table_lines.append("-" * 100)
+
+    with open("books_report.txt", "w", encoding="utf-8") as f:
+        for line in table_lines:
+            f.write(line + "\n")
+
+    print("\n✅ Report generated: books_report.txt")
 
 ################################################ REPORT ################################################################
+
 ################################################# MENU #################################################################
 def main_menu():
     while True:
@@ -835,34 +872,30 @@ def main_menu():
         elif choice == "3":
             manage_loans()
         elif choice == "4":
-            generate_report("report.pdf")
+            manage_report()
         elif choice == "5":
             print("\nExiting program...")
             break
         else:
             print("\n❌ Invalid option! Please select 1-5.")
 
-
 def manage_books():
     while True:
         print("\n--- Manage Books ---")
         print("1. Add Book")
         print("2. View All Books")
-        print("3. View Top 3 Books")
-        print("4. Edit book")
-        print("5. Delete Book")
-        print("6. Back to Main Menu")
-        choice = input("Select an option (1-6): ")
+        print("3. Edit Book")
+        print("4. Delete Book")
+        print("5. Back to Main Menu")
+        choice = input("Select an option (1-5): ")
 
         if choice == "1":
             menu_add_book()
         elif choice == "2":
             menu_view_books()
         elif choice == "3":
-            menu_top_borrowed_books()
-        elif choice == "4":
             menu_edit_book()
-        elif choice == "5":
+        elif choice == "4":
             menu_view_books()
             while True:
                 try:
@@ -871,10 +904,10 @@ def manage_books():
                     break
                 except ValueError:
                     print("\n❌ Invalid input. Please enter a number.")
-        elif choice == "6":
+        elif choice == "5":
             break
         else:
-            print("\n❌ Invalid option! Please select 1-6.")
+            print("\n❌ Invalid option! Please select 1-5.")
 
 def manage_members():
     while True:
@@ -906,7 +939,6 @@ def manage_members():
         else:
             print("\n❌ Invalid option! Please select 1-5.")
 
-
 def manage_loans():
     while True:
         print("\n--- Manage Loans ---")
@@ -933,6 +965,25 @@ def manage_loans():
         else:
             print("\n❌ Invalid option! Please select 1-6.")
 
+def manage_report():
+    while True:
+        print("\n--- Manage Loans ---")
+        print("1. Popular Book Report")
+        print("2. Users Report ")
+        print("3. Books Report")
+        print("4. Back to Main Menu")
+
+        choice = input("Select an option (1-4): ")
+        if choice == "1":
+            menu_popular_book_report()
+        elif choice == "2":
+            menu_users_report()
+        elif choice == "3":
+            menu_books_report()
+        elif choice == "4":
+            break
+        else:
+            print("\n❌ Invalid option! Please select 1-4.")
 ################################################# MENU #################################################################
 
-main_menu()
+main_menu()#
