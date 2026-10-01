@@ -1,16 +1,25 @@
 ===========================================================================================================================================================
                                                           LIBRARY USERS REPORT
 ===========================================================================================================================================================
-Report Date : 2026-10-01 22:13:03
+Report Date : 2026-10-01 22:26:45
 
 Member ID   Member Name           Email                              Birth Year  Max Loan  Borrowed  Borrowed Books                     Status    
 -----------------------------------------------------------------------------------------------------------------------------------------------------------
 69001       Daniel                Daniel@gmail.com                   2003        5         1         COMPUTER NETWORKS AND INTERNETS    Active    
+69002       Michael               Michael@gmail.com                  2004        5         0         -                                  Active    
+69003       Benjamin              Benjamin@gmail.com                 2000        5         0         -                                  Active    
+69004       Matthew               Matthew@gmail.com                  2006        5         0         -                                  Active    
+69005       Sofia                 Sofia@gmail.com                    2005        5         0         -                                  Active    
+69006       Thomas                Thomas@gmail.com                   2006        5         0         -                                  Active    
+69007       Henry                 Henry@gmail.com                    1999        5         0         -                                  Active    
+69008       Steven                Steven@gmail.com                   1997        5         0         -                                  Active    
+69009       Olivia                Olivia@gmail.com                   2009        5         0         -                                  Active    
+69010       Lucas                 Lucas@gmail.com                    1995        5         0         -                                  Active    
 -----------------------------------------------------------------------------------------------------------------------------------------------------------
 SUMMARY
-Total Members               : 1
-Active Members              : 1
+Total Members               : 10
+Active Members              : 10
 Deleted Members             : 0
 Members Currently Borrowing : 1
-Members Not Borrowing       : 0
+Members Not Borrowing       : 9
 ===========================================================================================================================================================
