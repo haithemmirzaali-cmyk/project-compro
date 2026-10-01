@@ -861,12 +861,17 @@ def menu_books_report():
     total_borrowed_times_all = 0
     weekly_total = 0
     used_books = 0
+    total_all_copies = 0  # รวมสำเนาหนังสือทั้งหมดทุกเล่ม
 
     for book in books:
         book_id = book["book_id"]
         title = book["title"]
         if len(title) > 40:
             title = title[:40] + "..."
+
+        # อ่านจำนวน copies ของหนังสือเล่มนั้น (หากไม่มีฟิลด์ copies จะ default ให้เป็น 1)
+        copies = book.get("copies", 1)
+        total_all_copies += copies
 
         total_times = total_borrowed.get(book_id, 0)
         weekly_times = weekly_borrowed.get(book_id, 0)
@@ -877,24 +882,27 @@ def menu_books_report():
         total_borrowed_times_all += total_times
         weekly_total += weekly_times
 
-        report_data.append((book_id, title, total_times, weekly_times))
+        report_data.append((book_id, title, copies, weekly_times))
 
     total_books = len(books)
 
-    if total_books > 0:
-        usage_percent = used_books / total_books * 100
+    # คำนวณ Book Usage Percentage ของภาพรวม: จำนวนที่ยืมใน 1 สัปดาห์ / จำนวนหนังสือรวม copies ทุกเล่ม
+    if total_all_copies > 0:
+        overall_usage_percent = (weekly_total / total_all_copies) * 100
     else:
-        usage_percent = 0
+        overall_usage_percent = 0
 
     ############################################# HEADER ###########################################################
-    
+
     now = datetime.now(timezone(timedelta(hours=7)))
     offset = now.strftime("%z")
     offset = offset[:3] + ":" + offset[3:]
 
     table_lines = []
     table_lines.append("Library Borrow System — Books Report")
-    table_lines.append(f"Generated At : {now.strftime('%Y-%m-%d %H:%M:%S')} ({offset})")
+    table_lines.append(
+        f"Generated At : {now.strftime('%Y-%m-%d %H:%M:%S')} ({offset})"
+    )
     table_lines.append("App Version  : 1.0")
     table_lines.append("Endianness   : Little-Endian")
     table_lines.append("Encoding     : UTF-8 (fixed-length)")
@@ -902,15 +910,18 @@ def menu_books_report():
     table_lines.append("")
 
     ############################################# TABLE ############################################################
-    headers = ["ID", "Book Title", "Borrowed Times", "1 Week Borrow", "Usage"]
+    headers = ["ID", "Book Title", "Total Copies", "1 Week Borrow", "Usage"]
     rows = []
 
-    for book_id, title, total_times, weekly_times in report_data:
-        if weekly_total > 0:
-            book_usage = weekly_times / weekly_total * 100
+    for book_id, title, copies, weekly_times in report_data:
+        # คำนวณ % การยืมใน 1 สัปดาห์ของเล่มนี้ เปรียบเทียบกับ Total Copies ของเล่มนี้
+        if copies > 0:
+            book_usage = (weekly_times / copies) * 100
         else:
             book_usage = 0
-        rows.append([book_id, title, total_times, weekly_times, f"{book_usage:.2f}%"])
+        rows.append(
+            [book_id, title, copies, weekly_times, f"{book_usage:.2f}%"]
+        )
 
     widths = [len(h) for h in headers]
     for r in rows:
@@ -920,10 +931,18 @@ def menu_books_report():
     sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
 
     table_lines.append(sep)
-    table_lines.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+    table_lines.append(
+        "| "
+        + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
+        + " |"
+    )
     table_lines.append(sep)
     for r in rows:
-        table_lines.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+        table_lines.append(
+            "| "
+            + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r))
+            + " |"
+        )
     table_lines.append(sep)
 
     ############################################# SUMMARY ##########################################################
@@ -931,10 +950,14 @@ def menu_books_report():
     table_lines.append("")
     table_lines.append("Summary")
     table_lines.append(f"- Total Book Titles         : {total_books}")
-    table_lines.append(f"- Books Used in Last 7 Days : {used_books}")
-    table_lines.append(f"- Book Usage Percentage     : {usage_percent:.2f}%")
+    table_lines.append(f"- Total Book Copies         : {total_all_copies}")
     table_lines.append(f"- Borrowed in Last 7 Days   : {weekly_total}")
-    table_lines.append(f"- Total Borrowed Times      : {total_borrowed_times_all}")
+    table_lines.append(
+        f"- Book Usage Percentage     : {overall_usage_percent:.2f}%"
+    )
+    table_lines.append(
+        f"- Total Borrowed Times      : {total_borrowed_times_all}"
+    )
 
     ############################################# TERMINAL #########################################################
     print()
