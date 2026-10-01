@@ -618,6 +618,8 @@ def menu_view_current_loans():
 
 ############################################ FUNCTIONS MENU ############################################################
 ################################################ REPORT ################################################################
+############################################# POPULAR BOOK REPORT ######################################################
+############################################# POPULAR BOOK REPORT ######################################################
 def menu_popular_book_report():
     loans = read_all_loans()
     books = read_all_books()
@@ -637,127 +639,85 @@ def menu_popular_book_report():
         print("\nยังไม่มีข้อมูลการยืมหนังสือ")
         return
 
-    popular_books = sorted(
-        borrow_count.items(),
-        key=lambda x: x[1],
-        reverse=True
-    )
-
-    report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    ############################################# POPULAR BOOK REPORT ##############################################################
+    popular_books = sorted(borrow_count.items(), key=lambda x: x[1], reverse=True)
 
     report_data = []
 
     for book_id, borrow_times in popular_books:
-
-        book = next(
-            (b for b in books if b["book_id"] == book_id),
-            None
-        )
+        book = next((b for b in books if b["book_id"] == book_id), None)
 
         if book:
             title = book["title"]
-
             if len(title) > 52:
                 title = title[:49] + "..."
+            report_data.append((book_id, title, borrow_times))
 
-            report_data.append(
-                (
-                    book_id,
-                    title,
-                    borrow_times
-                )
-            )
+    ############################################# TABLE BUILDER ####################################################
+    def make_table(headers, rows):
+        widths = [len(h) for h in headers]
+        for r in rows:
+            for i, c in enumerate(r):
+                widths[i] = max(widths[i], len(str(c)))
+
+        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+        out = [sep]
+        out.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+        out.append(sep)
+        for r in rows:
+            out.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+        out.append(sep)
+        return out
+
+    ############################################# HEADER ###########################################################
+    now = datetime.now(timezone(timedelta(hours=7)))
+    offset = now.strftime("%z")
+    offset = offset[:3] + ":" + offset[3:]
 
     table_lines = []
-
-    line = "=" * 100
-
-    table_lines.append(line)
-    table_lines.append(
-        " " * 36 + "LIBRARY POPULAR BOOK REPORT"
-    )
-    table_lines.append(line)
-    table_lines.append(
-        f"Report Date : {report_date}"
-    )
+    table_lines.append("Library Borrow System — Popular Book Report")
+    table_lines.append(f"Generated At : {now.strftime('%Y-%m-%d %H:%M:%S')} ({offset})")
+    table_lines.append("App Version  : 1.0")
+    table_lines.append("Endianness   : Little-Endian")
+    table_lines.append("Encoding     : UTF-8 (fixed-length)")
     table_lines.append("")
 
-    table_lines.append(
-        f"{'Rank':<8}"
-        f"{'Book ID':<15}"
-        f"{'Book Title':<55}"
-        f"{'Borrowed':>12}"
-    )
-
-    table_lines.append("-" * 100)
-
-    rank = 1
+    ############################################# TABLE ############################################################
+    rows = []
     total_borrowed = 0
 
-    for book_id, title, borrow_times in report_data:
-
-        table_lines.append(
-            f"{rank:<8}"
-            f"{book_id:<15}"
-            f"{title:<55}"
-            f"{borrow_times:>12}"
-        )
-
-        rank += 1
+    for rank, (book_id, title, borrow_times) in enumerate(report_data, start=1):
+        rows.append([rank, book_id, title, borrow_times])
         total_borrowed += borrow_times
 
-    table_lines.append("-" * 100)
+    table_lines += make_table(["Rank", "Book ID", "Book Title", "Borrowed"], rows)
 
-############################################# SUMMARY ##############################################################
-
-    table_lines.append("SUMMARY")
-
-    table_lines.append(
-        f"Total Book Titles       : {len(report_data)}"
-    )
-
-    table_lines.append(
-        f"Total Borrowed Times    : {total_borrowed}"
-    )
+    ############################################# SUMMARY ##########################################################
+    summary_rows = [
+        ["Total Book Titles", len(report_data)],
+        ["Total Borrowed Times", total_borrowed],
+    ]
 
     if report_data:
-        most_popular_title = report_data[0][1]
-        most_popular_count = report_data[0][2]
+        summary_rows.append([f"Most Borrowed Book: {report_data[0][1]}", report_data[0][2]])
 
-        table_lines.append(
-            f"Most Borrowed Book      : "
-            f"{most_popular_title} "
-            f"({most_popular_count} times)"
-        )
+    table_lines.append("")
+    table_lines.append("Summary")
+    table_lines += make_table(["Item", "Amount"], summary_rows)
 
-    table_lines.append(line)
-
-################################################ TERMINAL ################################################################
-
+    ############################################# TERMINAL #########################################################
     print()
+    for text in table_lines:
+        print(text)
 
-    for line in table_lines:
-        print(line)
+    ############################################# SAVE FILE TXT ####################################################
+    with open("popular_book_report.txt", "w", encoding="utf-8") as f:
+        for text in table_lines:
+            f.write(text + "\n")
 
-################################################ SAVE FILE TXT ################################################################
+    print("\n✅ Report generated: popular_book_report.txt")
 
 
-
-    with open(
-        "popular_book_report.txt",
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        for line in table_lines:
-            f.write(line + "\n")
-
-    print(
-        "\n✅ Report generated: popular_book_report.txt"
-    )
-
+############################################# USERS REPORT #############################################################
 def menu_users_report():
     members = read_all_members()
     books = read_all_books()
@@ -769,9 +729,7 @@ def menu_users_report():
 
     current_loans = get_current_loans(loans)
 
-    report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    report_data = []
+    rows = []
     total_members_borrowing = 0
 
     for member in members:
@@ -790,12 +748,7 @@ def menu_users_report():
 
         for loan in current_loans:
             if loan["member_id"] == member_id:
-
-                book = next(
-                    (b for b in books if b["book_id"] == loan["book_id"]),
-                    None
-                )
-
+                book = next((b for b in books if b["book_id"] == loan["book_id"]), None)
                 if book:
                     borrowed_books.append(book["title"])
 
@@ -806,60 +759,10 @@ def menu_users_report():
 
         if borrowed_books:
             titles = ", ".join(borrowed_books)
-
             if len(titles) > 35:
                 titles = titles[:32] + "..."
         else:
             titles = "-"
-
-        report_data.append(
-            (
-                member_id,
-                member_name,
-                email,
-                birth_year,
-                max_loan,
-                borrowed_count,
-                titles,
-                status_text
-            )
-        )
-################################################ REPORT ################################################################
-
-
-    table_lines = []
-
-    line = "=" * 155
-
-    table_lines.append(line)
-    table_lines.append(" " * 58 + "LIBRARY USERS REPORT")
-    table_lines.append(line)
-    table_lines.append(f"Report Date : {report_date}")
-    table_lines.append("")
-
-    table_lines.append(
-        f"{'Member ID':<12}"
-        f"{'Member Name':<22}"
-        f"{'Email':<35}"
-        f"{'Birth Year':<12}"
-        f"{'Max Loan':<10}"
-        f"{'Borrowed':<10}"
-        f"{'Borrowed Books':<35}"
-        f"{'Status':<10}"
-    )
-
-    table_lines.append("-" * 155)
-
-    for (
-        member_id,
-        member_name,
-        email,
-        birth_year,
-        max_loan,
-        borrowed_count,
-        titles,
-        status_text
-    ) in report_data:
 
         if len(member_name) > 20:
             member_name = member_name[:17] + "..."
@@ -867,21 +770,48 @@ def menu_users_report():
         if len(email) > 33:
             email = email[:30] + "..."
 
-        table_lines.append(
-            f"{member_id:<12}"
-            f"{member_name:<22}"
-            f"{email:<35}"
-            f"{birth_year:<12}"
-            f"{max_loan:<10}"
-            f"{borrowed_count:<10}"
-            f"{titles:<35}"
-            f"{status_text:<10}"
-        )
+        rows.append([
+            member_id, member_name, email, birth_year,
+            max_loan, borrowed_count, titles, status_text
+        ])
 
-    table_lines.append("-" * 155)
+    ############################################# TABLE BUILDER ####################################################
+    def make_table(headers, rows):
+        widths = [len(h) for h in headers]
+        for r in rows:
+            for i, c in enumerate(r):
+                widths[i] = max(widths[i], len(str(c)))
 
-################################################ SUMMARY ################################################################
+        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+        out = [sep]
+        out.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+        out.append(sep)
+        for r in rows:
+            out.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+        out.append(sep)
+        return out
 
+    ############################################# HEADER ###########################################################
+    now = datetime.now(timezone(timedelta(hours=7)))
+    offset = now.strftime("%z")
+    offset = offset[:3] + ":" + offset[3:]
+
+    table_lines = []
+    table_lines.append("Library Borrow System — Users Report")
+    table_lines.append(f"Generated At : {now.strftime('%Y-%m-%d %H:%M:%S')} ({offset})")
+    table_lines.append("App Version  : 1.0")
+    table_lines.append("Endianness   : Little-Endian")
+    table_lines.append("Encoding     : UTF-8 (fixed-length)")
+    table_lines.append("")
+
+    ############################################# TABLE ############################################################
+    table_lines += make_table(
+        ["Member ID", "Member Name", "Email", "Birth Year",
+         "Max Loan", "Borrowed", "Borrowed Books", "Status"],
+        rows
+    )
+
+    ############################################# SUMMARY ##########################################################
     total_members = len(members)
     members_not_borrowing = total_members - total_members_borrowing
 
@@ -894,51 +824,51 @@ def menu_users_report():
         else:
             deleted_members += 1
 
-    table_lines.append("SUMMARY")
-    table_lines.append(
-        f"Total Members               : {total_members}"
-    )
-    table_lines.append(
-        f"Active Members              : {active_members}"
-    )
-    table_lines.append(
-        f"Deleted Members             : {deleted_members}"
-    )
-    table_lines.append(
-        f"Members Currently Borrowing : {total_members_borrowing}"
-    )
-    table_lines.append(
-        f"Members Not Borrowing       : {members_not_borrowing}"
-    )
+    table_lines.append("")
+    table_lines.append("Summary")
+    table_lines += make_table(["Item", "Amount"], [
+        ["Total Members (records)", total_members],
+        ["Active Members", active_members],
+        ["Deleted Members", deleted_members],
+        ["Members Currently Borrowing", total_members_borrowing],
+        ["Members Not Borrowing", members_not_borrowing],
+    ])
 
-    table_lines.append(line)
+    active_rows = [r for r in rows if r[7] == "Active"]
 
-############################################# TERMINAL ##############################################################
+    if active_rows:
+        max_loan_count = {}
+        for r in active_rows:
+            max_loan_count[r[4]] = max_loan_count.get(r[4], 0) + 1
 
+        table_lines.append("")
+        table_lines.append("Members by Max Loan (Active only)")
+        table_lines += make_table(
+            ["Max Loan", "Amount"],
+            [[f"{k} books", v] for k, v in sorted(max_loan_count.items())]
+        )
+
+    ############################################# TERMINAL #########################################################
     print()
+    for text in table_lines:
+        print(text)
 
-    for line in table_lines:
-        print(line)
-
-############################################# SAVE FILE TXT ##############################################################
-
+    ############################################# SAVE FILE TXT ####################################################
     with open("users_report.txt", "w", encoding="utf-8") as f:
-        for line in table_lines:
-            f.write(line + "\n")
+        for text in table_lines:
+            f.write(text + "\n")
 
     print("\n✅ Report generated: users_report.txt")
 
 
+############################################# BOOKS REPORT #############################################################
 def menu_books_report():
     all_books = read_all_books()
     loans = read_all_loans()
     books = [b for b in all_books if b["status"] == 1]
 
-    now = datetime.now()
-    today = now.date()
+    today = datetime.now().date()
     start_date = today - timedelta(days=6)  # 7 วัน รวมวันนี้
-    report_date = now.strftime("%Y-%m-%d %H:%M:%S")
-    
     total_borrowed = {}
     weekly_borrowed = {}
 
@@ -961,14 +891,10 @@ def menu_books_report():
     total_borrowed_times_all = 0
     weekly_total = 0
     used_books = 0
-    total_all_copies = 0  # ผลรวมสำเนาหนังสือทั้งหมดทุกเล่ม
 
     for book in books:
         book_id = book["book_id"]
         title = book["title"]
-        # หากคีย์สำเนาใน dictionary ใช้ชื่ออื่น (เช่น quantity หรือ total_copies) ให้เปลี่ยนตรงนี้
-        copies = book.get("copies", 1)  
-
         if len(title) > 40:
             title = title[:40] + "..."
 
@@ -980,78 +906,94 @@ def menu_books_report():
 
         total_borrowed_times_all += total_times
         weekly_total += weekly_times
-        total_all_copies += copies
 
-        report_data.append((book_id, title, copies, weekly_times))
+        report_data.append((book_id, title, total_times, weekly_times))
 
     total_books = len(books)
 
-    # คำนวณ Book Usage Percentage รวม: จำนวนที่ยืมใน 1 สัปดาห์ / จำนวนสำเนาหนังสือรวมทั้งหมด
-    if total_all_copies > 0:
-        usage_percent = (weekly_total / total_all_copies) * 100
+    if total_books > 0:
+        usage_percent = used_books / total_books * 100
     else:
         usage_percent = 0
 
-############################################# REPORT ##############################################################
- 
-    table_lines = []
-    sep = "=" * 100
+    ############################################# TABLE BUILDER ####################################################
+    def make_table(headers, rows):
+        widths = [len(h) for h in headers]
+        for r in rows:
+            for i, c in enumerate(r):
+                widths[i] = max(widths[i], len(str(c)))
 
-    table_lines.append(sep)
-    table_lines.append(" " * 35 + "LIBRARY BOOKS REPORT")
-    table_lines.append(sep)
-    table_lines.append(f"Report Date : {report_date}")
-    table_lines.append("Period      : Last 7 Days")
+        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+        out = [sep]
+        out.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+        out.append(sep)
+        for r in rows:
+            out.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+        out.append(sep)
+        return out
+
+    ############################################# HEADER ###########################################################
+    now = datetime.now(timezone(timedelta(hours=7)))
+    offset = now.strftime("%z")
+    offset = offset[:3] + ":" + offset[3:]
+
+    table_lines = []
+    table_lines.append("Library Borrow System — Books Report")
+    table_lines.append(f"Generated At : {now.strftime('%Y-%m-%d %H:%M:%S')} ({offset})")
+    table_lines.append("App Version  : 1.0")
+    table_lines.append("Endianness   : Little-Endian")
+    table_lines.append("Encoding     : UTF-8 (fixed-length)")
+    table_lines.append("Period       : Last 7 Days")
     table_lines.append("")
 
-    table_lines.append(
-        f"{'ID':<8}"
-        f"{'Book Title':<45}"
-        f"{'Total Copies':<18}"
-        f"{'1 Week Borrow':<15}"
-        f"{'Usage':>9}"
-    )
-    table_lines.append("-" * 100)
+    ############################################# TABLE ############################################################
+    rows = []
 
-    for book_id, title, copies, weekly_times in report_data:
-        # เปอร์เซ็นต์การยืมใน 1 สัปดาห์เทียบกับจำนวน copies ของเล่มนั้น
-        if copies > 0:
-            book_usage = (weekly_times / copies) * 100
+    for book_id, title, total_times, weekly_times in report_data:
+        if weekly_total > 0:
+            book_usage = weekly_times / weekly_total * 100
         else:
             book_usage = 0
+        rows.append([book_id, title, total_times, weekly_times, f"{book_usage:.2f}%"])
 
-        table_lines.append(
-            f"{book_id:<8}"
-            f"{title:<45}"
-            f"{copies:<18}"
-            f"{weekly_times:<15}"
-            f"{book_usage:>8.2f}%"
+    table_lines += make_table(
+        ["ID", "Book Title", "Borrowed Times", "1 Week Borrow", "Usage"],
+        rows
+    )
+
+    ############################################# SUMMARY ##########################################################
+    table_lines.append("")
+    table_lines.append("Summary (Active books only)")
+    table_lines += make_table(["Item", "Amount"], [
+        ["Total Book Titles", total_books],
+        ["Books Used in Last 7 Days", used_books],
+        ["Book Usage Percentage", f"{usage_percent:.2f}%"],
+        ["Borrowed in Last 7 Days", weekly_total],
+        ["Total Borrowed Times", total_borrowed_times_all],
+    ])
+
+    if books:
+        author_count = {}
+        for b in books:
+            author_count[b["author"]] = author_count.get(b["author"], 0) + 1
+
+        table_lines.append("")
+        table_lines.append("Books by Author (Active only)")
+        table_lines += make_table(
+            ["Author", "Amount"],
+            [[a, n] for a, n in sorted(author_count.items(), key=lambda x: x[1], reverse=True)]
         )
 
-    table_lines.append("-" * 100)
-
-    table_lines.append("SUMMARY")
-    table_lines.append(f"Total Book Titles        : {total_books}")
-    table_lines.append(f"Total Book Copies        : {total_all_copies}")
-    table_lines.append(f"Books Used in Last 7 Days: {used_books}")
-    table_lines.append(f"Book Usage Percentage    : {usage_percent:.2f}%")
-    table_lines.append(f"Borrowed in Last 7 Days  : {weekly_total}")
-    table_lines.append(f"Total Borrowed Times     : {total_borrowed_times_all}")
-    table_lines.append(sep)
-
-    print("\n".join(table_lines))  
- 
-################################################ TERMINAL ################################################################
-
+    ############################################# TERMINAL #########################################################
     print()
     for text in table_lines:
         print(text)
- 
-    # บันทึกเป็น TXT
+
+    ############################################# SAVE FILE TXT ####################################################
     with open("books_report.txt", "w", encoding="utf-8") as f:
         for text in table_lines:
             f.write(text + "\n")
- 
+
     print("\n✅ Report generated: books_report.txt")
 
 ################################################ REPORT ################################################################
