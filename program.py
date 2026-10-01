@@ -620,6 +620,7 @@ def menu_view_current_loans():
 ################################################ REPORT ################################################################
 ############################################# POPULAR BOOK REPORT ######################################################
 ############################################# POPULAR BOOK REPORT ######################################################
+############################################# POPULAR BOOK REPORT ######################################################
 def menu_popular_book_report():
     loans = read_all_loans()
     books = read_all_books()
@@ -652,22 +653,6 @@ def menu_popular_book_report():
                 title = title[:49] + "..."
             report_data.append((book_id, title, borrow_times))
 
-    ############################################# TABLE BUILDER ####################################################
-    def make_table(headers, rows):
-        widths = [len(h) for h in headers]
-        for r in rows:
-            for i, c in enumerate(r):
-                widths[i] = max(widths[i], len(str(c)))
-
-        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
-        out = [sep]
-        out.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
-        out.append(sep)
-        for r in rows:
-            out.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
-        out.append(sep)
-        return out
-
     ############################################# HEADER ###########################################################
     now = datetime.now(timezone(timedelta(hours=7)))
     offset = now.strftime("%z")
@@ -682,6 +667,7 @@ def menu_popular_book_report():
     table_lines.append("")
 
     ############################################# TABLE ############################################################
+    headers = ["Rank", "Book ID", "Book Title", "Borrowed"]
     rows = []
     total_borrowed = 0
 
@@ -689,20 +675,25 @@ def menu_popular_book_report():
         rows.append([rank, book_id, title, borrow_times])
         total_borrowed += borrow_times
 
-    table_lines += make_table(["Rank", "Book ID", "Book Title", "Borrowed"], rows)
+    widths = [len(h) for h in headers]
+    for r in rows:
+        for i, c in enumerate(r):
+            widths[i] = max(widths[i], len(str(c)))
+
+    sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+
+    table_lines.append(sep)
+    table_lines.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+    table_lines.append(sep)
+    for r in rows:
+        table_lines.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+    table_lines.append(sep)
 
     ############################################# SUMMARY ##########################################################
-    summary_rows = [
-        ["Total Book Titles", len(report_data)],
-        ["Total Borrowed Times", total_borrowed],
-    ]
-
-    if report_data:
-        summary_rows.append([f"Most Borrowed Book: {report_data[0][1]}", report_data[0][2]])
-
     table_lines.append("")
     table_lines.append("Summary")
-    table_lines += make_table(["Item", "Amount"], summary_rows)
+    table_lines.append(f"- Total Book Titles    : {len(report_data)}")
+    table_lines.append(f"- Total Borrowed Times : {total_borrowed}")
 
     ############################################# TERMINAL #########################################################
     print()
@@ -775,22 +766,6 @@ def menu_users_report():
             max_loan, borrowed_count, titles, status_text
         ])
 
-    ############################################# TABLE BUILDER ####################################################
-    def make_table(headers, rows):
-        widths = [len(h) for h in headers]
-        for r in rows:
-            for i, c in enumerate(r):
-                widths[i] = max(widths[i], len(str(c)))
-
-        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
-        out = [sep]
-        out.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
-        out.append(sep)
-        for r in rows:
-            out.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
-        out.append(sep)
-        return out
-
     ############################################# HEADER ###########################################################
     now = datetime.now(timezone(timedelta(hours=7)))
     offset = now.strftime("%z")
@@ -805,11 +780,22 @@ def menu_users_report():
     table_lines.append("")
 
     ############################################# TABLE ############################################################
-    table_lines += make_table(
-        ["Member ID", "Member Name", "Email", "Birth Year",
-         "Max Loan", "Borrowed", "Borrowed Books", "Status"],
-        rows
-    )
+    headers = ["Member ID", "Member Name", "Email", "Birth Year",
+               "Max Loan", "Borrowed", "Borrowed Books", "Status"]
+
+    widths = [len(h) for h in headers]
+    for r in rows:
+        for i, c in enumerate(r):
+            widths[i] = max(widths[i], len(str(c)))
+
+    sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+
+    table_lines.append(sep)
+    table_lines.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+    table_lines.append(sep)
+    for r in rows:
+        table_lines.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+    table_lines.append(sep)
 
     ############################################# SUMMARY ##########################################################
     total_members = len(members)
@@ -826,27 +812,11 @@ def menu_users_report():
 
     table_lines.append("")
     table_lines.append("Summary")
-    table_lines += make_table(["Item", "Amount"], [
-        ["Total Members (records)", total_members],
-        ["Active Members", active_members],
-        ["Deleted Members", deleted_members],
-        ["Members Currently Borrowing", total_members_borrowing],
-        ["Members Not Borrowing", members_not_borrowing],
-    ])
-
-    active_rows = [r for r in rows if r[7] == "Active"]
-
-    if active_rows:
-        max_loan_count = {}
-        for r in active_rows:
-            max_loan_count[r[4]] = max_loan_count.get(r[4], 0) + 1
-
-        table_lines.append("")
-        table_lines.append("Members by Max Loan (Active only)")
-        table_lines += make_table(
-            ["Max Loan", "Amount"],
-            [[f"{k} books", v] for k, v in sorted(max_loan_count.items())]
-        )
+    table_lines.append(f"- Total Members (records)     : {total_members}")
+    table_lines.append(f"- Active Members              : {active_members}")
+    table_lines.append(f"- Deleted Members             : {deleted_members}")
+    table_lines.append(f"- Members Currently Borrowing : {total_members_borrowing}")
+    table_lines.append(f"- Members Not Borrowing       : {members_not_borrowing}")
 
     ############################################# TERMINAL #########################################################
     print()
@@ -868,7 +838,7 @@ def menu_books_report():
     books = [b for b in all_books if b["status"] == 1]
 
     today = datetime.now().date()
-    start_date = today - timedelta(days=6)  # 7 วัน รวมวันนี้
+    start_date = today - timedelta(days=6)
     total_borrowed = {}
     weekly_borrowed = {}
 
@@ -916,23 +886,8 @@ def menu_books_report():
     else:
         usage_percent = 0
 
-    ############################################# TABLE BUILDER ####################################################
-    def make_table(headers, rows):
-        widths = [len(h) for h in headers]
-        for r in rows:
-            for i, c in enumerate(r):
-                widths[i] = max(widths[i], len(str(c)))
-
-        sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
-        out = [sep]
-        out.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
-        out.append(sep)
-        for r in rows:
-            out.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
-        out.append(sep)
-        return out
-
     ############################################# HEADER ###########################################################
+    
     now = datetime.now(timezone(timedelta(hours=7)))
     offset = now.strftime("%z")
     offset = offset[:3] + ":" + offset[3:]
@@ -947,6 +902,7 @@ def menu_books_report():
     table_lines.append("")
 
     ############################################# TABLE ############################################################
+    headers = ["ID", "Book Title", "Borrowed Times", "1 Week Borrow", "Usage"]
     rows = []
 
     for book_id, title, total_times, weekly_times in report_data:
@@ -956,33 +912,29 @@ def menu_books_report():
             book_usage = 0
         rows.append([book_id, title, total_times, weekly_times, f"{book_usage:.2f}%"])
 
-    table_lines += make_table(
-        ["ID", "Book Title", "Borrowed Times", "1 Week Borrow", "Usage"],
-        rows
-    )
+    widths = [len(h) for h in headers]
+    for r in rows:
+        for i, c in enumerate(r):
+            widths[i] = max(widths[i], len(str(c)))
+
+    sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+
+    table_lines.append(sep)
+    table_lines.append("| " + " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers)) + " |")
+    table_lines.append(sep)
+    for r in rows:
+        table_lines.append("| " + " | ".join(str(c).ljust(widths[i]) for i, c in enumerate(r)) + " |")
+    table_lines.append(sep)
 
     ############################################# SUMMARY ##########################################################
+
     table_lines.append("")
-    table_lines.append("Summary (Active books only)")
-    table_lines += make_table(["Item", "Amount"], [
-        ["Total Book Titles", total_books],
-        ["Books Used in Last 7 Days", used_books],
-        ["Book Usage Percentage", f"{usage_percent:.2f}%"],
-        ["Borrowed in Last 7 Days", weekly_total],
-        ["Total Borrowed Times", total_borrowed_times_all],
-    ])
-
-    if books:
-        author_count = {}
-        for b in books:
-            author_count[b["author"]] = author_count.get(b["author"], 0) + 1
-
-        table_lines.append("")
-        table_lines.append("Books by Author (Active only)")
-        table_lines += make_table(
-            ["Author", "Amount"],
-            [[a, n] for a, n in sorted(author_count.items(), key=lambda x: x[1], reverse=True)]
-        )
+    table_lines.append("Summary")
+    table_lines.append(f"- Total Book Titles         : {total_books}")
+    table_lines.append(f"- Books Used in Last 7 Days : {used_books}")
+    table_lines.append(f"- Book Usage Percentage     : {usage_percent:.2f}%")
+    table_lines.append(f"- Borrowed in Last 7 Days   : {weekly_total}")
+    table_lines.append(f"- Total Borrowed Times      : {total_borrowed_times_all}")
 
     ############################################# TERMINAL #########################################################
     print()
