@@ -1,0 +1,36 @@
+====================================================================================================
+                                   LIBRARY BOOKS REPORT
+====================================================================================================
+Report Date : 2026-10-01 22:13:04
+Period      : Last 7 Days
+
+ID      Book Title                                   Borrowed Times    1 Week Borrow      Usage
+----------------------------------------------------------------------------------------------------
+1001    COMPUTER NETWORKS AND INTERNETS              1                 1                100.00%
+1002    IOS PROGRAMMING                              0                 0                  0.00%
+1003    AI-ASSISTED PROGRAMMING                      0                 0                  0.00%
+1004    INTRODUCTION TO PROGRAMMING WITH JAVA        0                 0                  0.00%
+1005    MUST KNOW HIGH SCHOOL COMPUTER PROGRAMMI...  0                 0                  0.00%
+1006    DIGITAL MAVERICKS                            0                 0                  0.00%
+1007    CONCEPTS OF PROGRAMMING LANGUAGES            0                 0                  0.00%
+1008    BAYESIAN METHODS FOR HACKERS                 0                 0                  0.00%
+1009    C PROGRAMMING ABSOLUTE BEGINNER'S GUIDE      0                 0                  0.00%
+1010    R PROGRAMMING FOR MASS SPECTROMETRY          0                 0                  0.00%
+1011    DATABASE SYSTEMS                             0                 0                  0.00%
+1012    MODERN DATABASE MANAGEMENT                   0                 0                  0.00%
+1013    PATRIOT                                      0                 0                  0.00%
+1014    PLUCKED                                      0                 0                  0.00%
+1015    COMPUTER SYSTEMS                             0                 0                  0.00%
+1016    ENGLISH LANGUAGE SYSTEMS                     0                 0                  0.00%
+1017    DIGITAL SAT STUDY GUIDE                      0                 0                  0.00%
+1018    BUSINESS PARTNER A1                          0                 0                  0.00%
+1019    COMPUTER APPLICATION                         0                 0                  0.00%
+1020    SWIFT FOR PROGRAMMERS                        0                 0                  0.00%
+----------------------------------------------------------------------------------------------------
+SUMMARY
+Total Book Titles        : 20
+Books Used in Last 7 Days: 1
+Book Usage Percentage    : 5.00%
+Borrowed in Last 7 Days  : 1
+Total Borrowed Times     : 1
+====================================================================================================
