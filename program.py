@@ -933,55 +933,62 @@ def menu_books_report():
     all_books = read_all_books()
     loans = read_all_loans()
     books = [b for b in all_books if b["status"] == 1]
- 
+
     now = datetime.now()
     today = now.date()
     start_date = today - timedelta(days=6)  # 7 วัน รวมวันนี้
     report_date = now.strftime("%Y-%m-%d %H:%M:%S")
+    
     total_borrowed = {}
     weekly_borrowed = {}
- 
+
     for loan in loans:
         if loan["op_code"] != 1:
             continue
- 
+
         book_id = loan["book_id"]
         total_borrowed[book_id] = total_borrowed.get(book_id, 0) + 1
- 
+
         try:
             loan_date = datetime.strptime(loan["loan_date"], "%Y/%m/%d").date()
         except ValueError:
             continue
- 
+
         if start_date <= loan_date <= today:
             weekly_borrowed[book_id] = weekly_borrowed.get(book_id, 0) + 1
- 
+
     report_data = []
     total_borrowed_times_all = 0
     weekly_total = 0
     used_books = 0
- 
+    total_all_copies = 0  # ผลรวมสำเนาหนังสือทั้งหมดทุกเล่ม
+
     for book in books:
         book_id = book["book_id"]
         title = book["title"]
+        # หากคีย์สำเนาใน dictionary ใช้ชื่ออื่น (เช่น quantity หรือ total_copies) ให้เปลี่ยนตรงนี้
+        copies = book.get("copies", 1)  
+
         if len(title) > 40:
             title = title[:40] + "..."
- 
+
         total_times = total_borrowed.get(book_id, 0)
         weekly_times = weekly_borrowed.get(book_id, 0)
- 
+
         if weekly_times > 0:
             used_books += 1
- 
+
         total_borrowed_times_all += total_times
         weekly_total += weekly_times
- 
-        report_data.append((book_id, title, total_times, weekly_times))
- 
+        total_all_copies += copies
+
+        report_data.append((book_id, title, copies, weekly_times))
+
     total_books = len(books)
- 
-    if total_books > 0:
-        usage_percent = used_books / total_books * 100
+
+    # คำนวณ Book Usage Percentage รวม: จำนวนที่ยืมใน 1 สัปดาห์ / จำนวนสำเนาหนังสือรวมทั้งหมด
+    if total_all_copies > 0:
+        usage_percent = (weekly_total / total_all_copies) * 100
     else:
         usage_percent = 0
 
@@ -989,46 +996,50 @@ def menu_books_report():
  
     table_lines = []
     sep = "=" * 100
- 
+
     table_lines.append(sep)
     table_lines.append(" " * 35 + "LIBRARY BOOKS REPORT")
     table_lines.append(sep)
     table_lines.append(f"Report Date : {report_date}")
     table_lines.append("Period      : Last 7 Days")
     table_lines.append("")
- 
+
     table_lines.append(
         f"{'ID':<8}"
         f"{'Book Title':<45}"
-        f"{'Borrowed Times':<18}"
+        f"{'Total Copies':<18}"
         f"{'1 Week Borrow':<15}"
         f"{'Usage':>9}"
     )
     table_lines.append("-" * 100)
- 
-    for book_id, title, total_times, weekly_times in report_data:
-        if weekly_total > 0:
-            book_usage = weekly_times / weekly_total * 100
+
+    for book_id, title, copies, weekly_times in report_data:
+        # เปอร์เซ็นต์การยืมใน 1 สัปดาห์เทียบกับจำนวน copies ของเล่มนั้น
+        if copies > 0:
+            book_usage = (weekly_times / copies) * 100
         else:
             book_usage = 0
- 
+
         table_lines.append(
             f"{book_id:<8}"
             f"{title:<45}"
-            f"{total_times:<18}"
+            f"{copies:<18}"
             f"{weekly_times:<15}"
             f"{book_usage:>8.2f}%"
         )
- 
+
     table_lines.append("-" * 100)
- 
+
     table_lines.append("SUMMARY")
     table_lines.append(f"Total Book Titles        : {total_books}")
+    table_lines.append(f"Total Book Copies        : {total_all_copies}")
     table_lines.append(f"Books Used in Last 7 Days: {used_books}")
     table_lines.append(f"Book Usage Percentage    : {usage_percent:.2f}%")
     table_lines.append(f"Borrowed in Last 7 Days  : {weekly_total}")
     table_lines.append(f"Total Borrowed Times     : {total_borrowed_times_all}")
     table_lines.append(sep)
+
+    print("\n".join(table_lines))  
  
 ################################################ TERMINAL ################################################################
 
