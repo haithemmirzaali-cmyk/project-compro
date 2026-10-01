@@ -19,13 +19,14 @@ def add_book(book_id, title, status, author, year, copies):
     with open("books.dat", "ab") as f:
         f.write(record)
 
-members_struck = struct.Struct("<ii50siiII")
-def add_members(member_id , status , name, birth_year , max_loan):
+members_struck = struct.Struct("<ii50s50siiII")
+def add_members(member_id , status , name, email, birth_year , max_loan):
     now = int(time.time())
     record = members_struck.pack(
         member_id,
         status,
         name.encode("utf-8").ljust(50, b"\x00"),
+        email.encode("utf-8").ljust(50, b"\x00"),
         birth_year,
         max_loan,
         now,   # created_at
@@ -73,6 +74,7 @@ def read_all_books(filename="books.dat"):
     except FileNotFoundError:
         print(f"ไฟล์ {filename} ไม่พบ")
     return books
+
 def read_all_members(filename="members.dat"):
     members = []
     try:
@@ -86,10 +88,11 @@ def read_all_members(filename="members.dat"):
                     "member_id": unpacked[0],
                     "status": unpacked[1],
                     "name": unpacked[2].decode("utf-8").rstrip("\x00"),
-                    "birth_year": unpacked[3],
-                    "max_loan": unpacked[4],
-                    "created_at": datetime.fromtimestamp(unpacked[5]).strftime("%Y-%m-%d %H:%M:%S"),
-                    "updated_at": datetime.fromtimestamp(unpacked[6]).strftime("%Y-%m-%d %H:%M:%S")
+                    "email": unpacked[3].decode("utf-8").rstrip("\x00"),
+                    "birth_year": unpacked[4],
+                    "max_loan": unpacked[5],
+                    "created_at": datetime.fromtimestamp(unpacked[6]).strftime("%Y-%m-%d %H:%M:%S"),
+                    "updated_at": datetime.fromtimestamp(unpacked[7]).strftime("%Y-%m-%d %H:%M:%S")
                 }
                 members.append(member)
     except FileNotFoundError:
@@ -249,10 +252,11 @@ def menu_add_member():
         member_id = int(input("Enter Member ID: "))
         status = 1
         name = str(input("Enter Member Name: "))
+        email = str(input("Enter Member Email: "))
         birth_year = int(input("Enter Birth Year: "))
         max_loan = 5
 
-        add_members(member_id, status, name, birth_year, max_loan)
+        add_members(member_id, status, name, email, birth_year, max_loan)
         print(f"\n✅ Member '{name}' added successfully!")
 
     except ValueError:
@@ -264,15 +268,15 @@ def menu_view_members(filename="members.dat"):
         print("No members found.")
         return
 
-    print("-" * 83)
-    print(f"{'ID':<10} {'Name':<22} {'Birth Year':<17} {'Max Loan':<19} {'Status':<17}")
-    print("-" * 83)
+    print("-" * 135)
+    print(f"{'ID':<10} {'Name':<22}  {'Email':<50} {'Birth Year':<17} {'Max Loan':<19} {'Status':<17}")
+    print("-" * 135)
 
     for m in members:
         status_text = "Active" if m['status'] == 1 else "Deleted"
-        print(f"{m['member_id']:<10} {m['name']:<22} {m['birth_year']:<17} {m['max_loan']:<19} {status_text:<17}")
+        print(f"{m['member_id']:<10} {m['name']:<22} {m['email']:<50} {m['birth_year']:<17} {m['max_loan']:<19} {status_text:<17}")
 
-    print("-" * 83)
+    print("-" * 135)
 
 def menu_edit_member(filename="members.dat"):
     menu_view_members()
@@ -300,19 +304,21 @@ def menu_edit_member(filename="members.dat"):
         if m[0] == member_id and m[1] == 1:
             print(f"Editing Member ID {member_id}")
             name = input(f"Enter new Name [{m[2].decode('utf-8').rstrip(chr(0))}]: ")
+            email = input(f"Enter new Email [{m[3].decode('utf-8').rstrip(chr(0))}]: ")
             try:
-                birth_year = input(f"Enter new Birth Year [{m[3]}]: ")
-                birth_year = int(birth_year) if birth_year else m[3]
-                max_loan = input(f"Enter new Max Loan [{m[4]}]: ")
-                max_loan = int(max_loan) if max_loan else m[4]
+                birth_year = input(f"Enter new Birth Year [{m[4]}]: ")
+                birth_year = int(birth_year) if birth_year else m[4]
+                max_loan = input(f"Enter new Max Loan [{m[5]}]: ")
+                max_loan = int(max_loan) if max_loan else m[5]
             except ValueError:
                 print("\n❌ Invalid number input. Edit canceled.")
                 return
 
             m[2] = name.encode("utf-8").ljust(50, b"\x00") if name else m[2]
-            m[3] = birth_year
-            m[4] = max_loan
-            m[6] = int(time.time())  
+            m[3] = email.encode("utf-8").ljust(50, b"\x00") if email else m[3]
+            m[4] = birth_year
+            m[5] = max_loan
+            m[7] = int(time.time())  
             found = True
             break
 
@@ -345,7 +351,7 @@ def menu_delete_member(member_id, filename="members.dat"):
     for m in members:
         if m[0] == member_id and m[1] == 1:
             m[1] = 0 
-            m[6] = int(time.time()) 
+            m[7] = int(time.time()) 
             found = True
             break
 
@@ -513,11 +519,9 @@ def menu_view_overdue_loans():
 
             if today > due_date:
                 overdue_days = (today - due_date).days
-
-                overdue_loans.append({
-                    "loan": loan,
-                    "overdue_days": overdue_days
-                })
+                overdue_loans.append(
+                    {"loan": loan, "overdue_days": overdue_days}
+                )
 
         except ValueError:
             continue
@@ -526,41 +530,57 @@ def menu_view_overdue_loans():
         print("\n❌ No overdue books.")
         return
 
-    print("-" * 97)
+    # ==================================================
+    # แสดงผลตาราง (รูปแบบมาตรฐาน 100 ตัวอักษร)
+    # ==================================================
+
+    line = "-" * 100
+
+    print(line)
     print(
-        f"{'BookID':<8} "
-        f"{'Title':<100} "
-        f"{'MemberID':<10} "
-        f"{'Member Name':<20} "
-        f"{'Overdue':<10}"
+        f"{'Book ID':<8}"
+        f"{'Book Title':<45}"
+        f"{'Member ID':<12}"
+        f"{'Member Name':<20}"
+        f"{'Overdue':<15}"
     )
-    print("-" * 97)
+    print(line)
 
     for item in overdue_loans:
         loan = item["loan"]
         overdue_days = item["overdue_days"]
 
         book_title = next(
-            (b["title"] for b in books
-             if b["book_id"] == loan["book_id"]),
-            "Unknown"
+            (b["title"] for b in books if b["book_id"] == loan["book_id"]),
+            "Unknown",
         )
 
         member_name = next(
-            (m["name"] for m in members
-             if m["member_id"] == loan["member_id"]),
-            "Unknown"
+            (
+                m["name"]
+                for m in members
+                if m["member_id"] == loan["member_id"]
+            ),
+            "Unknown",
         )
 
+        # จำกัดความยาวชื่อหนังสือเพื่อไม่ให้ตารางเบี้ยว
+        if len(book_title) > 42:
+            book_title = book_title[:42] + "..."
+
+        # จำกัดความยาวชื่อสมาชิก
+        if len(member_name) > 18:
+            member_name = member_name[:18] + "..."
+
         print(
-            f"{loan['book_id']:<8} "
-            f"{book_title:<35} "
-            f"{loan['member_id']:<10} "
-            f"{member_name:<20} "
+            f"{loan['book_id']:<8}"
+            f"{book_title:<45}"
+            f"{loan['member_id']:<12}"
+            f"{member_name:<20}"
             f"{overdue_days} days"
         )
 
-    print("-" * 97)
+    print(line)
     print(f"Total overdue books: {len(overdue_loans)}")
 
 def menu_view_all_loans():
@@ -618,7 +638,10 @@ def menu_popular_book_report():
         print("\nไม่มีข้อมูลการยืมหนังสือ")
         return
 
-    # เก็บจำนวนครั้งที่หนังสือถูกยืม
+    # ==========================================
+    # นับจำนวนครั้งที่หนังสือถูกยืม
+    # ==========================================
+
     borrow_count = {}
 
     for loan in loans:
@@ -630,32 +653,26 @@ def menu_popular_book_report():
         print("\nยังไม่มีข้อมูลการยืมหนังสือ")
         return
 
-    # เรียงจากจำนวนยืมมากไปน้อย
+    # ==========================================
+    # เรียงจากจำนวนครั้งที่ยืมมาก -> น้อย
+    # ==========================================
+
     popular_books = sorted(
         borrow_count.items(),
         key=lambda x: x[1],
         reverse=True
     )
 
-    print("\n" + "=" * 80)
-    print("                    POPULAR BOOK REPORT")
-    print("=" * 80)
+    report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print(f"{'Rank':<8}{'Book ID':<12}{'Book Title':<45}{'Borrow':>10}")
-    print("-" * 80)
+    # ==========================================
+    # สร้างข้อมูล Report
+    # ==========================================
 
-    table_lines = []
-    table_lines.append("=" * 80)
-    table_lines.append("                    POPULAR BOOK REPORT")
-    table_lines.append("=" * 80)
-    table_lines.append(
-        f"{'Rank':<8}{'Book ID':<12}{'Book Title':<45}{'Borrow':>10}"
-    )
-    table_lines.append("-" * 80)
+    report_data = []
 
-    rank = 1
+    for book_id, borrow_times in popular_books:
 
-    for book_id, count in popular_books:
         book = next(
             (b for b in books if b["book_id"] == book_id),
             None
@@ -664,69 +681,152 @@ def menu_popular_book_report():
         if book:
             title = book["title"]
 
-            # ป้องกันชื่อหนังสือยาวเกินตาราง
-            if len(title) > 42:
-                title = title[:42] + "..."
+            # จำกัดชื่อหนังสือ
+            if len(title) > 52:
+                title = title[:49] + "..."
 
-            line = f"{rank:<8}{book_id:<12}{title:<45}{count:>10}"
+            report_data.append(
+                (
+                    book_id,
+                    title,
+                    borrow_times
+                )
+            )
 
-            print(line)
-            table_lines.append(line)
+    # ==========================================
+    # สร้าง Report
+    # ==========================================
 
-            rank += 1
+    table_lines = []
 
-    print("-" * 80)
+    line = "=" * 100
 
-    table_lines.append("-" * 80)
+    table_lines.append(line)
+    table_lines.append(
+        " " * 36 + "LIBRARY POPULAR BOOK REPORT"
+    )
+    table_lines.append(line)
+    table_lines.append(
+        f"Report Date : {report_date}"
+    )
+    table_lines.append("")
 
+    table_lines.append(
+        f"{'Rank':<8}"
+        f"{'Book ID':<15}"
+        f"{'Book Title':<55}"
+        f"{'Borrowed':>12}"
+    )
+
+    table_lines.append("-" * 100)
+
+    # ==========================================
+    # ข้อมูลหนังสือ
+    # ==========================================
+
+    rank = 1
+    total_borrowed = 0
+
+    for book_id, title, borrow_times in report_data:
+
+        table_lines.append(
+            f"{rank:<8}"
+            f"{book_id:<15}"
+            f"{title:<55}"
+            f"{borrow_times:>12}"
+        )
+
+        rank += 1
+        total_borrowed += borrow_times
+
+    table_lines.append("-" * 100)
+
+    # ==========================================
+    # SUMMARY
+    # ==========================================
+
+    table_lines.append("SUMMARY")
+
+    table_lines.append(
+        f"Total Book Titles       : {len(report_data)}"
+    )
+
+    table_lines.append(
+        f"Total Borrowed Times    : {total_borrowed}"
+    )
+
+    if report_data:
+        most_popular_title = report_data[0][1]
+        most_popular_count = report_data[0][2]
+
+        table_lines.append(
+            f"Most Borrowed Book      : "
+            f"{most_popular_title} "
+            f"({most_popular_count} times)"
+        )
+
+    table_lines.append(line)
+
+    # ==========================================
+    # แสดงใน Terminal
+    # ==========================================
+
+    print()
+
+    for line in table_lines:
+        print(line)
+
+    # ==========================================
     # บันทึกเป็น TXT
-    with open("popular_book_report.txt", "w", encoding="utf-8") as f:
+    # ==========================================
+
+    with open(
+        "popular_book_report.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
         for line in table_lines:
             f.write(line + "\n")
 
-    print("\n✅ Report generated: popular_book_report.txt")
+    print(
+        "\n✅ Report generated: popular_book_report.txt"
+    )
 
 def menu_users_report():
     members = read_all_members()
     books = read_all_books()
     loans = read_all_loans()
 
-    print("\n" + "=" * 100)
-    print("                         USERS REPORT")
-    print("=" * 100)
+    if not members:
+        print("\nNo members found.")
+        return
 
-    print(
-        f"{'Member ID':<15}"
-        f"{'Member Name':<25}"
-        f"{'Borrowed':<12}"
-        f"{'Borrowed Books'}"
-    )
-
-    print("-" * 100)
-
-    table_lines = []
-    table_lines.append("=" * 100)
-    table_lines.append("                         USERS REPORT")
-    table_lines.append("=" * 100)
-    table_lines.append(
-        f"{'Member ID':<15}"
-        f"{'Member Name':<25}"
-        f"{'Borrowed':<12}"
-        f"{'Borrowed Books'}"
-    )
-    table_lines.append("-" * 100)
-
+    # หาการยืมปัจจุบัน
     current_loans = get_current_loans(loans)
 
-    for member in members:
+    report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    report_data = []
+    total_members_borrowing = 0
+
+    for member in members:
         member_id = member["member_id"]
         member_name = member["name"]
+        email = member["email"]
+        birth_year = member["birth_year"]
+        max_loan = member["max_loan"]
 
+        # สถานะสมาชิก
+        if member["status"] == 1:
+            status_text = "Active"
+        else:
+            status_text = "Deleted"
+
+        # หาหนังสือที่สมาชิกกำลังยืม
         borrowed_books = []
 
         for loan in current_loans:
-
             if loan["member_id"] == member_id:
 
                 book = next(
@@ -739,28 +839,136 @@ def menu_users_report():
 
         borrowed_count = len(borrowed_books)
 
+        if borrowed_count > 0:
+            total_members_borrowing += 1
+
+        # รวมชื่อหนังสือ
         if borrowed_books:
             titles = ", ".join(borrowed_books)
 
-            # ป้องกันข้อความยาวเกินตาราง
-            if len(titles) > 45:
-                titles = titles[:45] + "..."
+            if len(titles) > 35:
+                titles = titles[:32] + "..."
         else:
             titles = "-"
 
-        line = (
-            f"{member_id:<15}"
-            f"{member_name:<25}"
-            f"{borrowed_count:<12}"
-            f"{titles}"
+        report_data.append(
+            (
+                member_id,
+                member_name,
+                email,
+                birth_year,
+                max_loan,
+                borrowed_count,
+                titles,
+                status_text
+            )
         )
 
+    # ==================================
+    # สร้าง Report
+    # ==================================
+
+    table_lines = []
+
+    line = "=" * 155
+
+    table_lines.append(line)
+    table_lines.append(" " * 58 + "LIBRARY USERS REPORT")
+    table_lines.append(line)
+    table_lines.append(f"Report Date : {report_date}")
+    table_lines.append("")
+
+    table_lines.append(
+        f"{'Member ID':<12}"
+        f"{'Member Name':<22}"
+        f"{'Email':<35}"
+        f"{'Birth Year':<12}"
+        f"{'Max Loan':<10}"
+        f"{'Borrowed':<10}"
+        f"{'Borrowed Books':<35}"
+        f"{'Status':<10}"
+    )
+
+    table_lines.append("-" * 155)
+
+    for (
+        member_id,
+        member_name,
+        email,
+        birth_year,
+        max_loan,
+        borrowed_count,
+        titles,
+        status_text
+    ) in report_data:
+
+        # ป้องกันข้อมูลยาวเกินตาราง
+        if len(member_name) > 20:
+            member_name = member_name[:17] + "..."
+
+        if len(email) > 33:
+            email = email[:30] + "..."
+
+        table_lines.append(
+            f"{member_id:<12}"
+            f"{member_name:<22}"
+            f"{email:<35}"
+            f"{birth_year:<12}"
+            f"{max_loan:<10}"
+            f"{borrowed_count:<10}"
+            f"{titles:<35}"
+            f"{status_text:<10}"
+        )
+
+    table_lines.append("-" * 155)
+
+    # ==================================
+    # Summary
+    # ==================================
+
+    total_members = len(members)
+    members_not_borrowing = total_members - total_members_borrowing
+
+    active_members = 0
+    deleted_members = 0
+
+    for member in members:
+        if member["status"] == 1:
+            active_members += 1
+        else:
+            deleted_members += 1
+
+    table_lines.append("SUMMARY")
+    table_lines.append(
+        f"Total Members               : {total_members}"
+    )
+    table_lines.append(
+        f"Active Members              : {active_members}"
+    )
+    table_lines.append(
+        f"Deleted Members             : {deleted_members}"
+    )
+    table_lines.append(
+        f"Members Currently Borrowing : {total_members_borrowing}"
+    )
+    table_lines.append(
+        f"Members Not Borrowing       : {members_not_borrowing}"
+    )
+
+    table_lines.append(line)
+
+    # ==================================
+    # แสดงใน Terminal
+    # ==================================
+
+    print()
+
+    for line in table_lines:
         print(line)
-        table_lines.append(line)
 
-    print("-" * 100)
-
-    table_lines.append("-" * 100)
+    # ==================================
+    # บันทึกเป็น TXT
+    # ==================================
 
     with open("users_report.txt", "w", encoding="utf-8") as f:
         for line in table_lines:
@@ -768,78 +976,164 @@ def menu_users_report():
 
     print("\n✅ Report generated: users_report.txt")
 
+
 def menu_books_report():
     books = read_all_books()
     loans = read_all_loans()
 
-    print("\n" + "=" * 100)
-    print("                         BOOKS REPORT")
-    print("=" * 100)
+    today = datetime.now()
+    report_date = today.strftime("%Y-%m-%d %H:%M:%S")
 
-    print(
-        f"{'ID':<8}"
-        f"{'Book Title':<45}"
-        f"{'Total':<10}"
-        f"{'Available':<12}"
-        f"{'Borrowed Times':<15}"
-    )
+    # หาจำนวนหนังสือที่ถูกใช้งานในช่วง 7 วันล่าสุด
+    used_book_ids = []
 
-    print("-" * 100)
+    for loan in loans:
+        if loan["op_code"] == 1:
+            try:
+                loan_date = datetime.strptime(
+                    loan["loan_date"],
+                    "%Y/%m/%d"
+                )
 
-    table_lines = []
-    table_lines.append("=" * 100)
-    table_lines.append("                         BOOKS REPORT")
-    table_lines.append("=" * 100)
-    table_lines.append(
-        f"{'ID':<8}"
-        f"{'Book Title':<45}"
-        f"{'Total':<10}"
-        f"{'Available':<12}"
-        f"{'Borrowed Times':<15}"
-    )
-    table_lines.append("-" * 100)
+                days = (today - loan_date).days
+
+                if 0 <= days <= 7:
+                    if loan["book_id"] not in used_book_ids:
+                        used_book_ids.append(loan["book_id"])
+
+            except ValueError:
+                continue
+
+    # จำนวนหนังสือทั้งหมด
+    total_books = len(books)
+
+    # จำนวนหนังสือที่ถูกใช้งาน
+    used_books = len(used_book_ids)
+
+    # เปอร์เซ็นต์หนังสือที่ถูกใช้งาน
+    if total_books > 0:
+        usage_percent = (used_books / total_books) * 100
+    else:
+        usage_percent = 0
+
+    report_data = []
+    total_borrowed_times_all = 0
 
     for book in books:
-
         book_id = book["book_id"]
         title = book["title"]
-        total_copies = book["copies"]
 
-        # นับจำนวนที่กำลังถูกยืม
-        current_borrowed = 0
-
-        for loan in get_current_loans(loans):
-            if loan["book_id"] == book_id:
-                current_borrowed += 1
-
-        available = total_copies - current_borrowed
-
-        # นับจำนวนครั้งที่เคยยืม
+        # จำนวนครั้งที่หนังสือถูกยืมทั้งหมด
         total_borrowed_times = 0
 
         for loan in loans:
             if loan["book_id"] == book_id and loan["op_code"] == 1:
                 total_borrowed_times += 1
 
-        # ป้องกันชื่อหนังสือยาวเกินตาราง
+        # จำนวนครั้งที่หนังสือถูกยืมใน 7 วันล่าสุด
+        weekly_borrowed = 0
+
+        for loan in loans:
+            if loan["book_id"] == book_id and loan["op_code"] == 1:
+                try:
+                    loan_date = datetime.strptime(
+                        loan["loan_date"],
+                        "%Y/%m/%d"
+                    )
+
+                    days = (today - loan_date).days
+
+                    if 0 <= days <= 7:
+                        weekly_borrowed += 1
+
+                except ValueError:
+                    continue
+
         if len(title) > 42:
             title = title[:42] + "..."
 
-        line = (
-            f"{book_id:<8}"
-            f"{title:<45}"
-            f"{total_copies:<10}"
-            f"{available:<12}"
-            f"{total_borrowed_times:<15}"
+        report_data.append(
+            (
+                book_id,
+                title,
+                total_borrowed_times,
+                weekly_borrowed
+            )
         )
 
-        print(line)
-        table_lines.append(line)
+        total_borrowed_times_all += total_borrowed_times
 
-    print("-" * 100)
+    # =========================
+    # สร้าง Report
+    # =========================
+
+    table_lines = []
+    line = "=" * 100
+
+    table_lines.append(line)
+    table_lines.append(" " * 35 + "LIBRARY BOOKS REPORT")
+    table_lines.append(line)
+    table_lines.append(f"Report Date : {report_date}")
+    table_lines.append("Period      : Last 7 Days")
+    table_lines.append("")
+
+    table_lines.append(
+        f"{'ID':<8}"
+        f"{'Book Title':<45}"
+        f"{'Borrowed Times':<18}"
+        f"{'1 Week Borrow':<15}"
+        f"{'Usage':<10}"
+    )
 
     table_lines.append("-" * 100)
 
+    for (
+        book_id,
+        title,
+        total_borrowed_times,
+        weekly_borrowed
+    ) in report_data:
+
+        # หนังสือแต่ละเล่มจะแสดงว่า
+        # ถูกใช้งานหรือไม่ในช่วง 7 วัน
+        if weekly_borrowed > 0:
+            usage = "Used"
+        else:
+            usage = "-"
+
+        table_lines.append(
+            f"{book_id:<8}"
+            f"{title:<45}"
+            f"{total_borrowed_times:<18}"
+            f"{weekly_borrowed:<15}"
+            f"{usage:<10}"
+        )
+
+    table_lines.append("-" * 100)
+
+    table_lines.append("SUMMARY")
+    table_lines.append(
+        f"Total Book Titles       : {total_books}"
+    )
+    table_lines.append(
+        f"Books Used in Last 7 Days: {used_books}"
+    )
+    table_lines.append(
+        f"Book Usage Percentage   : {usage_percent:.2f}%"
+    )
+    table_lines.append(
+        f"Total Borrowed Times    : {total_borrowed_times_all}"
+    )
+
+    table_lines.append(line)
+
+    # แสดงใน Terminal
+    print()
+
+    for line in table_lines:
+        print(line)
+
+    # บันทึกเป็น TXT
     with open("books_report.txt", "w", encoding="utf-8") as f:
         for line in table_lines:
             f.write(line + "\n")
